@@ -1,10 +1,12 @@
 import numpy as np
+import random
+import os
 import time
 import matplotlib.pyplot as plt
 import csv
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-SIZE = 20
+SIZE = 5
 AMOUNT = 100
 
 # the calcUneighs, make_move and generate_population functions from:
