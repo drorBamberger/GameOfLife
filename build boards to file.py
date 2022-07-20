@@ -5,46 +5,46 @@ num_dict = 1
 path_boards = 'C:\\GameOfLife\\boards'
 
 
-def rand_bin(num, count):
+def rand_str(num, count):
     np.random.seed(num)
-    res = b''
+    res = ''
     for i in range(count):
-        temp = bytes(random.randint(0, 1))
+        temp = str(random.randint(0, 1))
         res += temp
+    print(res)
     return res
 
 
-def create_board_to_file(num, size):
-    initial_states = rand_bin(num, size * size)
-    return initial_states
+def conv_str_to_bin_array(str, size):
+    # fill str with zeros
+    length = size
+    if length % 8:
+        str += '0' * (8 - length % 8)
+        length = length + 8 - length % 8
+
+    # conv to bin array
+    bin_array = array("B")
+    for i in range(length // 8):
+        bin_array.append(int(str[i * 8:(i + 1) * 8], 2))
+
+    return bin_array
 
 
+def create_board(num, size):
+    boardStr = rand_str(num, size * size)
+    boardBin = conv_str_to_bin_array(boardStr, size * size)
+    return boardBin
+
+
+# make directions
 for i in range(num_dict):
-    if not os.path.isdir(path_boards + " " + str(i)):
-        os.mkdir(path_boards + " " + str(i))
+    if os.path.isdir(path_boards + " " + str(i)):
+        shutil.rmtree(path_boards + " " + str(i))
+    os.mkdir(path_boards + " " + str(i))
 
+# fill the files with boards
 for i in range(AMOUNT):
-    name = str(SIZE) + "-" + str(i) + "FB"  # first board
-    board = create_board_to_file(1, SIZE)
+    name = str(SIZE) + "-" + str(i) + "FB" + ".bnr"  # first board
+    board = create_board(1, SIZE)
     with open(path_boards + " " + str(i % num_dict) + "\\" + name, 'wb') as f:
-        f.write(board)
-
-# stack = generate_population(AMOUNT)
-#
-#
-# data = []
-# with open('C:\GameOfLife\data\FirstBoards.csv', 'w', encoding='UTF8', newline='') as f:
-#     writer = csv.writer(f)
-#     writer.writerows(data)
-#
-# count = np.zeros(SIZE * SIZE + 1, dtype=int)
-# for i in stack:
-#     data.append(i.flatten())
-#     count[sum(i)] += 1
-#
-#
-#
-# print(count)
-# print("There are a", sum(count), "boards")
-# END = time.time()
-# print("The running take:", END - START, "sec")
+        f.write(bytes(board))

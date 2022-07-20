@@ -4,10 +4,12 @@ import os
 import time
 import matplotlib.pyplot as plt
 import csv
+from array import array
+import shutil
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
 SIZE = 5
-AMOUNT = 100
+AMOUNT = 5
 
 # the calcUneighs, make_move and generate_population functions from:
 # https://medium.com/@ptyshevs/rgol-ga-1cafc67db6c7
