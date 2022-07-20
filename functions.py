@@ -6,10 +6,15 @@ import matplotlib.pyplot as plt
 import csv
 from array import array
 import shutil
+import sys
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
 SIZE = 5
 AMOUNT = 5
+
+num_dict = 1
+path_boards = 'C:\\GameOfLife\\boards\\'
+
 
 # the calcUneighs, make_move and generate_population functions from:
 # https://medium.com/@ptyshevs/rgol-ga-1cafc67db6c7
