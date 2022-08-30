@@ -1,16 +1,19 @@
-import numpy as np
 import random
 import os
 import time
+import numpy as np
 import matplotlib.pyplot as plt
 import csv
 from array import array
 import shutil
 import sys
+from PIL import Image
+from matplotlib import cm
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-SIZE = 5
-AMOUNT = 5
+SIZE = 10
+AMOUNT = 100
+MOVES = 5
 
 num_dict = 1
 path_boards = 'C:\\GameOfLife\\boards\\'
@@ -38,7 +41,7 @@ def make_move(field, moves=1):
     n = len(field)
     cur_field = field
     for _ in range(moves):
-        new_field = np.zeros((n, n), dtype='uint8')
+        new_field = [[0]*n]*n
         for i in range(n):
             for j in range(n):
                 neighs = calc_neighs(cur_field, i, j)
@@ -50,19 +53,8 @@ def make_move(field, moves=1):
     return cur_field
 
 
-def generate_population(amount, random_state=-1):
-    """
-    Generating initial population of individual solutions
-    :return: initial population as a list of 20x20 arrays
-    """
-    if random_state != -1:
-        np.random.seed(random_state)
-    initial_states = np.split(np.random.binomial(1, 0.5, (SIZE * amount, SIZE)).astype('uint8'), amount)
-    return deduction_edges(make_move(state, 5) for state in initial_states)
-
-
-def deduction_edges(l):
-    for i in l:
+def deduction_edges(lst):
+    for i in lst:
         if sum(sum(i)) < SIZE * SIZE * 0.05:
             return []
         elif sum(sum(i)) > SIZE * SIZE * 0.95:
@@ -71,8 +63,8 @@ def deduction_edges(l):
             return i
 
 
-def Average(l):
-    avg = sum(l) / len(l)
+def Average(lst):
+    avg = sum(lst) / len(lst)
     return avg
 
 
@@ -88,3 +80,4 @@ def max_no_zero(arr):
         if arr[-i] != 0:
             return len(arr) - i
     return -1
+
