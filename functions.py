@@ -9,15 +9,15 @@ import shutil
 import sys
 from PIL import Image
 from matplotlib import cm
+from PIL.Image import Resampling
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-SIZE = 10
-AMOUNT = 100
-MOVES = 5
-
-num_dict = 1
+SIZE = 20
+AMOUNT = 1000
+MOVES = 100
+num_dict = 10
 path_boards = 'C:\\GameOfLife\\boards\\'
-
+READFILE = 1
 
 # the calcUneighs, make_move and generate_population functions from:
 # https://medium.com/@ptyshevs/rgol-ga-1cafc67db6c7
@@ -30,26 +30,41 @@ def calc_neighs(field, i, j):
     for m in M:
         row_idx = m[0] + i
         col_idx = m[1] + j
-        if 0 <= row_idx < n and 0 <= col_idx < n:
+        if row_idx == n:
+            if col_idx == n:
+                if field[0][0]:
+                    neighs += 1
+            else:
+                if field[0][col_idx]:
+                    neighs += 1
+        elif col_idx == n:
+            if field[row_idx][0]:
+                neighs += 1
+        else:
             if field[row_idx][col_idx]:
                 neighs += 1
+    # print(i,j,neighs)
     return neighs
 
 
 def make_move(field, moves=1):
+    # print(field)
     """ Make a move forward according to Game of Life rules """
     n = len(field)
-    cur_field = field
-    for _ in range(moves):
-        new_field = [[0]*n]*n
+    cur_field = field[:]
+    for l in range(moves):
+        new_field = []
+        for i in range(n):
+            new_field.append([0]*n)
         for i in range(n):
             for j in range(n):
                 neighs = calc_neighs(cur_field, i, j)
+                # print(neighs)
                 if cur_field[i][j] and neighs == 2:
                     new_field[i][j] = 1
-                if neighs == 3:
+                elif neighs == 3:
                     new_field[i][j] = 1
-        cur_field = new_field
+        cur_field = new_field[:]
     return cur_field
 
 

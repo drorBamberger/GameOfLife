@@ -1,4 +1,4 @@
-from PIL.Image import Resampling
+from PIL.Image import Dither
 
 from functions import *
 
@@ -58,7 +58,7 @@ def save(path, im):
     else:
         pil_im = Image.fromarray((im * 255).astype(np.uint8))
     fixed_height = 500
-    resized_image = pil_im.resize((fixed_height, fixed_height), Resampling.NEAREST)
+    resized_image = pil_im.resize((fixed_height, fixed_height), Dither.NONE)
     resized_image.save(path)
 
 
@@ -70,10 +70,15 @@ if os.path.isdir(path_images[:-1]):
     shutil.rmtree(path_images[:-1])
 os.mkdir(path_images[:-1])
 
-bin_array = read_file('0\\10-2-6boards.bnr', LEN, AMOUNT)
+name = str(SIZE) + "-" + str(READFILE) + "-6boards" + ".bnr"  # first board
+bin_array = read_file(str(READFILE % num_dict) + "\\" + name, LEN, AMOUNT)
+
 boards = conv_bin_array_to_str(bin_array, LEN, AMOUNT)
-print(boards)
+# print(boards)
 for i in range(AMOUNT):
     board = boards[i * LEN:(i + 1) * LEN]
-    print(board)
-    print_board(board, SIZE, path_images + '10-2-' + str(i) + 'th6boards.png')
+    # print(board)
+    print_board(board, SIZE, path_images + str(SIZE) + '-' + str(READFILE) + '-' + str(i) + 'th6boards.png')
+
+
+
