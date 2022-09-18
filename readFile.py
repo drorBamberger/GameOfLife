@@ -1,34 +1,51 @@
 from PIL.Image import Dither
-
 from functions import *
 
 
-def read_file(path, size, amount=1):
+LEN = SIZE * SIZE
+path_images = 'C:\\GameOfLife\\images\\'
+name_file = str(SIZE) + "-" + str(READFILE) + "-" + str(AMOUNT_GENERATIONS) + "boards" + ".bnr"  # first board
+path_file = str(READFILE % NUM_DICT) + "\\" + name_file
+
+
+def read_file_bin_array(path, size, amount=1):
+    """the function read the bin file, and insert the board to bin array"""
     length = size * amount
-    if length % 8 != 0:
-        length = length + 8 - length % 8
+    if length % BYTE != 0:
+        length = length + BYTE - length % BYTE
 
     # read file
-    file_path = path_boards + path
+    file_path = PATH_BOARDS + path
     with open(file_path, 'rb') as f:
         binArray = f.read(length // 8)
     return binArray
 
 
+def read_file_string(path, size, amount=1):
+    """the function read the bin file, and insert the board to str array"""
+
+    bin_array = read_file_bin_array(path, size, amount)
+    list_boards = conv_bin_array_to_str(bin_array, LEN, AMOUNT_GENERATIONS)
+    return list_boards
+
+
 def conv_bin_array_to_str(binArray, size, amount=1):
+    """the function convert bin array to string"""
+
     # conv bin array to str
     res = ''
     for elem in binArray:
-        res += bin(elem)[2:].zfill(8)
+        res += bin(elem)[2:].zfill(BYTE)
 
     length = size * amount
     # remove zeros
-    if length % 8:
+    if length % BYTE:
         res = res[:length]
     return res
 
 
-def print_board(my_board, size, name):
+def save_board(my_board, size, name):
+    """the function plot the board, and save the board to image file"""
     table = np.zeros((size, size, 3))
     for i in range(size):
         for j in range(size):
@@ -36,7 +53,6 @@ def print_board(my_board, size, name):
             table[i, j] = [color, color, color]
     plt.imshow(table, interpolation='nearest')
     # plt.show()
-
     save(name, table)
 
 
@@ -62,23 +78,16 @@ def save(path, im):
     resized_image.save(path)
 
 
-AMOUNT = MOVES + 1
-LEN = SIZE * SIZE
-path_images = 'C:\\GameOfLife\\images\\'
-
+# Delete the previous images
 if os.path.isdir(path_images[:-1]):
     shutil.rmtree(path_images[:-1])
 os.mkdir(path_images[:-1])
 
-name = str(SIZE) + "-" + str(READFILE) + "-6boards" + ".bnr"  # first board
-bin_array = read_file(str(READFILE % num_dict) + "\\" + name, LEN, AMOUNT)
+# read the file to string
+boards = read_file_string(path_file, LEN, AMOUNT_GENERATIONS)
 
-boards = conv_bin_array_to_str(bin_array, LEN, AMOUNT)
-# print(boards)
-for i in range(AMOUNT):
-    board = boards[i * LEN:(i + 1) * LEN]
-    # print(board)
-    print_board(board, SIZE, path_images + str(SIZE) + '-' + str(READFILE) + '-' + str(i) + 'th6boards.png')
-
-
-
+# save the boards to images file
+for move in range(AMOUNT_GENERATIONS):
+    board = boards[move * LEN:(move + 1) * LEN]
+    path_image_file = path_images + str(SIZE) + '-' + str(READFILE) + '-' + str(move) + 'th' + str(AMOUNT_GENERATIONS) + 'boards.png'
+    save_board(board, SIZE, path_image_file)

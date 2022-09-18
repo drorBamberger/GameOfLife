@@ -3,7 +3,7 @@ from functions import *
 START = time.time()
 
 stack = []
-for i in range(AMOUNT):
+for i in range(AMOUNT_BOARDS):
     # print(generate_population(1, i))
     stack.append(generate_population(1, 100 * i))
 

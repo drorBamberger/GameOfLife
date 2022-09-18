@@ -13,11 +13,13 @@ from PIL.Image import Resampling
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
 SIZE = 20
-AMOUNT = 1000
-MOVES = 100
-num_dict = 10
-path_boards = 'C:\\GameOfLife\\boards\\'
-READFILE = 1
+AMOUNT_BOARDS = 100
+AMOUNT_MOVES = 100
+AMOUNT_GENERATIONS = AMOUNT_MOVES + 1
+NUM_DICT = 10
+PATH_BOARDS = 'C:\\GameOfLife\\boards\\'
+READFILE = 7
+BYTE = 8
 
 # the calcUneighs, make_move and generate_population functions from:
 # https://medium.com/@ptyshevs/rgol-ga-1cafc67db6c7
@@ -43,12 +45,10 @@ def calc_neighs(field, i, j):
         else:
             if field[row_idx][col_idx]:
                 neighs += 1
-    # print(i,j,neighs)
     return neighs
 
 
 def make_move(field, moves=1):
-    # print(field)
     """ Make a move forward according to Game of Life rules """
     n = len(field)
     cur_field = field[:]
@@ -59,7 +59,6 @@ def make_move(field, moves=1):
         for i in range(n):
             for j in range(n):
                 neighs = calc_neighs(cur_field, i, j)
-                # print(neighs)
                 if cur_field[i][j] and neighs == 2:
                     new_field[i][j] = 1
                 elif neighs == 3:
