@@ -10,16 +10,24 @@ import sys
 from PIL import Image
 from matplotlib import cm
 from PIL.Image import Resampling
+import seaborn as sns
+import pandas as pd
+
+SIZE = 5
+AMOUNT_BOARDS = 1000
+AMOUNT_MOVES = 5
+NUM_DICT = 10
+READFILE = 1
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-SIZE = 20
-AMOUNT_BOARDS = 100
-AMOUNT_MOVES = 100
+LEN = SIZE * SIZE
 AMOUNT_GENERATIONS = AMOUNT_MOVES + 1
-NUM_DICT = 10
 PATH_BOARDS = 'C:\\GameOfLife\\boards\\'
-READFILE = 7
 BYTE = 8
+PATH_IMAGES = 'C:\\GameOfLife\\images\\'
+FILE_TO_READ = str(SIZE) + "-" + str(READFILE) + "-" + str(AMOUNT_GENERATIONS) + "boards" + ".bnr"  # first board
+PATH_TO_READ = str(READFILE % NUM_DICT) + "\\" + FILE_TO_READ
+
 
 # the calcUneighs, make_move and generate_population functions from:
 # https://medium.com/@ptyshevs/rgol-ga-1cafc67db6c7
@@ -55,7 +63,7 @@ def make_move(field, moves=1):
     for l in range(moves):
         new_field = []
         for i in range(n):
-            new_field.append([0]*n)
+            new_field.append([0] * n)
         for i in range(n):
             for j in range(n):
                 neighs = calc_neighs(cur_field, i, j)
@@ -94,4 +102,3 @@ def max_no_zero(arr):
         if arr[-i] != 0:
             return len(arr) - i
     return -1
-

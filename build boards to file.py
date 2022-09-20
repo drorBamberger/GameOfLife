@@ -56,18 +56,26 @@ def create_board(num, size, moves=5):
     return boardsBin
 
 
-# Delete the previous images
-if os.path.isdir(PATH_BOARDS[:-1]):
-    shutil.rmtree(PATH_BOARDS[:-1])
-os.mkdir(PATH_BOARDS[:-1])
+def main():
+    # Delete the previous images
+    if os.path.isdir(PATH_BOARDS[:-1]):
+        shutil.rmtree(PATH_BOARDS[:-1])
+    os.mkdir(PATH_BOARDS[:-1])
 
-# make directions for boards
-for i in range(NUM_DICT):
-    os.mkdir(PATH_BOARDS + str(i))
+    # make directions for boards
+    for i in range(NUM_DICT):
+        os.mkdir(PATH_BOARDS + str(i))
 
-# fill the files with boards
-for i in range(AMOUNT_BOARDS):
-    name = str(SIZE) + "-" + str(i) + "-" + str(AMOUNT_GENERATIONS) + "boards" + ".bnr"  # first board
-    board = create_board(i, SIZE, AMOUNT_MOVES)
-    with open(PATH_BOARDS + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
-        f.write(bytes(board))
+    # fill the files with boards
+    for i in range(AMOUNT_BOARDS):
+        print(i, end=' ')
+        if i % 100 == 0:
+            print()
+        name = str(SIZE) + "-" + str(i) + "-" + str(AMOUNT_GENERATIONS) + "boards" + ".bnr"  # first board
+        board = create_board(i, SIZE, AMOUNT_MOVES)
+        with open(PATH_BOARDS + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
+            f.write(bytes(board))
+
+
+if __name__ == "__main__":
+    main()

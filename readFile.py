@@ -2,12 +2,6 @@ from PIL.Image import Dither
 from functions import *
 
 
-LEN = SIZE * SIZE
-path_images = 'C:\\GameOfLife\\images\\'
-name_file = str(SIZE) + "-" + str(READFILE) + "-" + str(AMOUNT_GENERATIONS) + "boards" + ".bnr"  # first board
-path_file = str(READFILE % NUM_DICT) + "\\" + name_file
-
-
 def read_file_bin_array(path, size, amount=1):
     """the function read the bin file, and insert the board to bin array"""
     length = size * amount
@@ -21,11 +15,11 @@ def read_file_bin_array(path, size, amount=1):
     return binArray
 
 
-def read_file_string(path, size, amount=1):
+def read_file_string(path, len, amount=1):
     """the function read the bin file, and insert the board to str array"""
 
-    bin_array = read_file_bin_array(path, size, amount)
-    list_boards = conv_bin_array_to_str(bin_array, LEN, AMOUNT_GENERATIONS)
+    bin_array = read_file_bin_array(path, len, amount)
+    list_boards = conv_bin_array_to_str(bin_array, len, AMOUNT_GENERATIONS)
     return list_boards
 
 
@@ -78,16 +72,22 @@ def save(path, im):
     resized_image.save(path)
 
 
-# Delete the previous images
-if os.path.isdir(path_images[:-1]):
-    shutil.rmtree(path_images[:-1])
-os.mkdir(path_images[:-1])
+def main():
+    # Delete the previous images
+    if os.path.isdir(PATH_IMAGES[:-1]):
+        shutil.rmtree(PATH_IMAGES[:-1])
+    os.mkdir(PATH_IMAGES[:-1])
 
-# read the file to string
-boards = read_file_string(path_file, LEN, AMOUNT_GENERATIONS)
+    # read the file to string
+    boards = read_file_string(PATH_TO_READ, LEN, AMOUNT_GENERATIONS)
 
-# save the boards to images file
-for move in range(AMOUNT_GENERATIONS):
-    board = boards[move * LEN:(move + 1) * LEN]
-    path_image_file = path_images + str(SIZE) + '-' + str(READFILE) + '-' + str(move) + 'th' + str(AMOUNT_GENERATIONS) + 'boards.png'
-    save_board(board, SIZE, path_image_file)
+    # save the boards to images file
+    for i in range(AMOUNT_GENERATIONS):
+        board = boards[i * LEN:(i + 1) * LEN]
+        path_image_file = PATH_IMAGES + str(SIZE) + '-' + str(READFILE) + '-' + str(i) + 'th' + str(
+            AMOUNT_GENERATIONS) + 'boards.png'
+        save_board(board, SIZE, path_image_file)
+
+
+if __name__ == "__main__":
+    main()
