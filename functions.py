@@ -12,10 +12,11 @@ from matplotlib import cm
 from PIL.Image import Resampling
 import seaborn as sns
 import pandas as pd
+import igraph
 
 SIZE = 5
-AMOUNT_BOARDS = 1000
-AMOUNT_MOVES = 5
+AMOUNT_BOARDS = 100000
+AMOUNT_MOVES = 0
 NUM_DICT = 10
 READFILE = 1
 

@@ -11,13 +11,16 @@ def add_board_to_heat_map(heat_map, size, field):
 
 
 def print_heat_map(heat_map):
-    plt.imshow(heat_map, cmap='hot', interpolation='nearest')
-    plt.show()
-    # counts
-    counts = df.apply(pd.value_counts).fillna(0)
+    print()
+    print(heat_map)
+    # plt.imshow(heat_map,cmap='hot', interpolation='nearest')
+    # plt.show()
 
-    # plot
-    sns.heatmap(counts, cmap="GnBu", annot=True)
+    # plt.figure(figsize=(15, 15))
+    plt.title('Pixel frequency')
+    sns.heatmap(heat_map, annot=True,fmt="d")
+    plt.show()
+
 
 
 def heat_map_all():
@@ -26,10 +29,10 @@ def heat_map_all():
     plt.show()
 
 
-def heat_map_pixels(size, amount_boards, amount_generations, numDict, pathBoards):
+def heat_map_pixels(size, amount_boards, amount_generations, numDict):
     """make a heat map of num pixels live in the data of games"""
     len = size * size
-    heat_map = np.zeros((size, size))
+    heat_map = np.zeros((size, size), dtype=int)
     for i in range(amount_boards):
         print(i, end=' ')
         if i % 100 == 0:
@@ -55,9 +58,7 @@ def path(size, number, amount_generations, numDict):
 
 
 def main():
-    heat_map = heat_map_pixels(SIZE, AMOUNT_BOARDS, AMOUNT_GENERATIONS, NUM_DICT, PATH_BOARDS)
-    print()
-    print(heat_map)
+    heat_map = heat_map_pixels(SIZE, AMOUNT_BOARDS, AMOUNT_GENERATIONS, NUM_DICT)
     print_heat_map(heat_map)
 
 
