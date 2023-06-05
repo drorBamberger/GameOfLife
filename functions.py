@@ -14,19 +14,18 @@ import seaborn as sns
 import pandas as pd
 import igraph
 
-SIZE = 5
+SIZE = 10
 AMOUNT_BOARDS = 100000
-AMOUNT_MOVES = 0
+AMOUNT_MOVES = 100
 NUM_DICT = 10
-READFILE = 1
+READFILE = 9996
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
 LEN = SIZE * SIZE
-AMOUNT_GENERATIONS = AMOUNT_MOVES + 1
 PATH_BOARDS = 'C:\\GameOfLife\\boards\\'
 BYTE = 8
 PATH_IMAGES = 'C:\\GameOfLife\\images\\'
-FILE_TO_READ = str(SIZE) + "-" + str(READFILE) + "-" + str(AMOUNT_GENERATIONS) + "boards" + ".bnr"  # first board
+FILE_TO_READ = str(SIZE) + "-" + str(READFILE) + "-" + str(AMOUNT_MOVES) + "boards" + ".bnr"  # first board
 PATH_TO_READ = str(READFILE % NUM_DICT) + "\\" + FILE_TO_READ
 
 
@@ -103,3 +102,43 @@ def max_no_zero(arr):
         if arr[-i] != 0:
             return len(arr) - i
     return -1
+
+
+def path(size, number, amount_moves, num_dict):
+    name_file = str(size) + "-" + str(number) + "-" + str(amount_moves) + "boards" + ".bnr"  # first board
+    path_file = str(number % num_dict) + "\\" + name_file
+    return path_file
+
+
+def read_file_bin_array(path):
+    """the function read the bin file, and insert the board to bin array"""
+    # read file
+    file_path = PATH_BOARDS + path
+    with open(file_path, 'rb') as f:
+        bin_array = f.read()
+    return bin_array
+
+
+def read_file_to_list(path, length):
+    """the function read the bin file, and insert the board to str array"""
+
+    bin_array = read_file_bin_array(path)
+    # print(bin_array)
+    str_boards = conv_bin_array_to_str(bin_array)
+    # print(str_boards)
+    list_boards = list()
+    # print(len(str_boards) // length)
+    for i in range(len(str_boards) // length):
+        # print(str_boards[i * LEN:(i + 1) * LEN])
+        list_boards.append(str_boards[i * LEN:(i + 1) * LEN])
+    # print(list_boards)
+    return list_boards, len(str_boards) // length
+
+
+def conv_bin_array_to_str(bin_array):
+    """the function convert bin array to string"""
+    # conv bin array to str
+    res = ''
+    for elem in bin_array:
+        res += bin(elem)[2:].zfill(BYTE)
+    return res

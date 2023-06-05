@@ -24,12 +24,12 @@ def convert_list_to_str(numList):  # [1,2,3]
     return s
 
 
-def conv_lst_to_bin_array(lst, size, count):
+def conv_lst_to_bin_array(lst):
     """convert string to bin array"""
     flat = flatten(lst)
+    length = len(flat)
 
     # fill list with zeros
-    length = size * size * count
     if length % BYTE != 0:
         flat += [0] * (BYTE - length % BYTE)
         length = length + BYTE - length % BYTE
@@ -43,17 +43,25 @@ def conv_lst_to_bin_array(lst, size, count):
 
 
 def create_board(num, size, moves=5):
-    """crate boards and the next moves"""
+    """create boards and the next moves"""
     first_board = rand_board(size, num)
     boards = first_board
     now_board = first_board[:]
+    next_board = []
+    prev_board = []
+    amount_boards = 1
     for i in range(moves):
-        now_board = make_move(now_board)
-        boards += now_board
-
-    boardsBin = array("B")
-    boardsBin += conv_lst_to_bin_array(boards, size, moves + 1)
-    return boardsBin
+        next_board = make_move(now_board)
+        if next_board != now_board and next_board != prev_board:
+            boards += next_board
+            prev_board = now_board
+            now_board = next_board
+            amount_boards += 1
+        else:
+            break
+    boards_bin = array("B")
+    boards_bin += conv_lst_to_bin_array(boards)
+    return boards_bin, amount_boards
 
 
 def main():
@@ -71,9 +79,10 @@ def main():
         print(i, end=' ')
         if i % 100 == 0:
             print()
-        name = str(SIZE) + "-" + str(i) + "-" + str(AMOUNT_GENERATIONS) + "boards" + ".bnr"  # first board
-        board = create_board(i, SIZE, AMOUNT_MOVES)
+        name = str(SIZE) + "-" + str(i) + "-" + str(AMOUNT_MOVES) + "boards" + ".bnr"  # first board
+        board, amount_boards = create_board(i, SIZE, AMOUNT_MOVES)
         with open(PATH_BOARDS + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
+            # f.write(bytes(amount_boards))
             f.write(bytes(board))
 
 

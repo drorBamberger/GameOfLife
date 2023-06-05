@@ -2,40 +2,7 @@ from PIL.Image import Dither
 from functions import *
 
 
-def read_file_bin_array(path, size, amount=1):
-    """the function read the bin file, and insert the board to bin array"""
-    length = size * amount
-    if length % BYTE != 0:
-        length = length + BYTE - length % BYTE
 
-    # read file
-    file_path = PATH_BOARDS + path
-    with open(file_path, 'rb') as f:
-        binArray = f.read(length // 8)
-    return binArray
-
-
-def read_file_string(path, len, amount=1):
-    """the function read the bin file, and insert the board to str array"""
-
-    bin_array = read_file_bin_array(path, len, amount)
-    list_boards = conv_bin_array_to_str(bin_array, len, AMOUNT_GENERATIONS)
-    return list_boards
-
-
-def conv_bin_array_to_str(binArray, size, amount=1):
-    """the function convert bin array to string"""
-
-    # conv bin array to str
-    res = ''
-    for elem in binArray:
-        res += bin(elem)[2:].zfill(BYTE)
-
-    length = size * amount
-    # remove zeros
-    if length % BYTE:
-        res = res[:length]
-    return res
 
 
 def save_board(my_board, size, name):
@@ -79,14 +46,14 @@ def main():
     os.mkdir(PATH_IMAGES[:-1])
 
     # read the file to string
-    boards = read_file_string(PATH_TO_READ, LEN, AMOUNT_GENERATIONS)
-
+    boards, amount_boards = read_file_to_list(PATH_TO_READ, LEN)
+    i = 0
     # save the boards to images file
-    for i in range(AMOUNT_GENERATIONS):
-        board = boards[i * LEN:(i + 1) * LEN]
-        path_image_file = PATH_IMAGES + str(SIZE) + '-' + str(READFILE) + '-' + str(i) + 'th' + str(
-            AMOUNT_GENERATIONS) + 'boards.png'
+    for board in boards:
+        path_image_file = PATH_IMAGES + str(SIZE) + '-' + str(READFILE) + '-' + str(i) + 'th' + str(AMOUNT_MOVES) + 'boards.png'
         save_board(board, SIZE, path_image_file)
+        i += 1
+    print(i)
 
 
 if __name__ == "__main__":
