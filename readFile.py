@@ -2,9 +2,6 @@ from PIL.Image import Dither
 from functions import *
 
 
-
-
-
 def save_board(my_board, size, name):
     """the function plot the board, and save the board to image file"""
     table = np.zeros((size, size, 3))
@@ -50,7 +47,8 @@ def main():
     i = 0
     # save the boards to images file
     for board in boards:
-        path_image_file = PATH_IMAGES + str(SIZE) + '-' + str(READFILE) + '-' + str(i) + 'th' + str(AMOUNT_MOVES) + 'boards.png'
+        path_image_file = PATH_IMAGES + str(SIZE) + '-' + str(READ_FILE) + '-' + str(i) + 'th' + str(
+            AMOUNT_MOVES) + 'boards.png'
         save_board(board, SIZE, path_image_file)
         i += 1
     print(i)

@@ -1,19 +1,10 @@
-import pandas as pd
-from fbprophet import Prophet
+from functions import *
 
-# Generate some example time series data
-df = pd.DataFrame({'ds': pd.date_range(start='2022-01-01', periods=100, freq='D'), 'y': range(100)})
+boards = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+length = 4
+ignore_range = 5
+amount_board_in_series = 5
 
-# Create the Prophet model
-m = Prophet(seasonality_mode='additive')
+boards = boards[ignore_range:]
+print([(boards[i:i + amount_board_in_series]) for i in range(len(boards) - amount_board_in_series + 1)])
 
-# Fit the model to the data
-m.fit(df)
-
-# Generate backcasted predictions
-future = m.make_future_dataframe(periods=10, freq='D', include_history=False)
-forecast = m.predict(future)
-
-# Print the backcasted predictions
-backcast = forecast.iloc[::-1]
-print(backcast)

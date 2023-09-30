@@ -1,3 +1,4 @@
+import itertools
 import random
 import os
 import time
@@ -12,21 +13,22 @@ from matplotlib import cm
 from PIL.Image import Resampling
 import seaborn as sns
 import pandas as pd
-import igraph
 
 SIZE = 10
 AMOUNT_BOARDS = 100000
 AMOUNT_MOVES = 100
-NUM_DICT = 10
-READFILE = 9996
+NUM_DICT = 1
+READ_FILE = 5
+IGNORE_RANGE = 5
+
 
 M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-LEN = SIZE * SIZE
+LEN = SIZE**2
 PATH_BOARDS = 'C:\\GameOfLife\\boards\\'
 BYTE = 8
 PATH_IMAGES = 'C:\\GameOfLife\\images\\'
-FILE_TO_READ = str(SIZE) + "-" + str(READFILE) + "-" + str(AMOUNT_MOVES) + "boards" + ".bnr"  # first board
-PATH_TO_READ = str(READFILE % NUM_DICT) + "\\" + FILE_TO_READ
+FILE_TO_READ = f"{SIZE}-{READ_FILE}-{AMOUNT_MOVES}boards.bnr"
+PATH_TO_READ = str(READ_FILE % NUM_DICT) + "\\" + FILE_TO_READ
 
 
 # the calcUneighs, make_move and generate_population functions from:
@@ -41,18 +43,18 @@ def calc_neighs(field, i, j):
         row_idx = m[0] + i
         col_idx = m[1] + j
         if row_idx == n:
-            if col_idx == n:
-                if field[0][0]:
-                    neighs += 1
-            else:
-                if field[0][col_idx]:
-                    neighs += 1
+            if (
+                col_idx == n
+                and field[0][0]
+                or col_idx != n
+                and field[0][col_idx]
+            ):
+                neighs += 1
         elif col_idx == n:
             if field[row_idx][0]:
                 neighs += 1
-        else:
-            if field[row_idx][col_idx]:
-                neighs += 1
+        elif field[row_idx][col_idx]:
+            neighs += 1
     return neighs
 
 
@@ -60,17 +62,14 @@ def make_move(field, moves=1):
     """ Make a move forward according to Game of Life rules """
     n = len(field)
     cur_field = field[:]
-    for l in range(moves):
-        new_field = []
-        for i in range(n):
-            new_field.append([0] * n)
-        for i in range(n):
-            for j in range(n):
-                neighs = calc_neighs(cur_field, i, j)
-                if cur_field[i][j] and neighs == 2:
-                    new_field[i][j] = 1
-                elif neighs == 3:
-                    new_field[i][j] = 1
+    for _ in range(moves):
+        new_field = [[0] * n for _ in range(n)]
+        for i, j in itertools.product(range(n), range(n)):
+            neighs = calc_neighs(cur_field, i, j)
+            if cur_field[i][j] and neighs == 2:
+                new_field[i][j] = 1
+            elif neighs == 3:
+                new_field[i][j] = 1
         cur_field = new_field[:]
     return cur_field
 
@@ -86,28 +85,20 @@ def deduction_edges(lst):
 
 
 def Average(lst):
-    avg = sum(lst) / len(lst)
-    return avg
+    return sum(lst) / len(lst)
 
 
 def min_no_zero(arr):
-    for i in range(len(arr)):
-        if arr[i] != 0:
-            return i
-    return -1
+    return next((i for i in range(len(arr)) if arr[i] != 0), -1)
 
 
 def max_no_zero(arr):
-    for i in range(len(arr)):
-        if arr[-i] != 0:
-            return len(arr) - i
-    return -1
+    return next((len(arr) - i for i in range(len(arr)) if arr[-i] != 0), -1)
 
 
 def path(size, number, amount_moves, num_dict):
-    name_file = str(size) + "-" + str(number) + "-" + str(amount_moves) + "boards" + ".bnr"  # first board
-    path_file = str(number % num_dict) + "\\" + name_file
-    return path_file
+    name_file = f"{str(size)}-{str(number)}-{str(amount_moves)}boards.bnr"
+    return str(number % num_dict) + "\\" + name_file
 
 
 def read_file_bin_array(path):
@@ -121,24 +112,23 @@ def read_file_bin_array(path):
 
 def read_file_to_list(path, length):
     """the function read the bin file, and insert the board to str array"""
-
+    
     bin_array = read_file_bin_array(path)
     # print(bin_array)
     str_boards = conv_bin_array_to_str(bin_array)
-    # print(str_boards)
-    list_boards = list()
-    # print(len(str_boards) // length)
-    for i in range(len(str_boards) // length):
-        # print(str_boards[i * LEN:(i + 1) * LEN])
-        list_boards.append(str_boards[i * LEN:(i + 1) * LEN])
+    list_boards = [
+        str_boards[i * LEN : (i + 1) * LEN]
+        for i in range(len(str_boards) // length)
+    ]
     # print(list_boards)
     return list_boards, len(str_boards) // length
 
 
 def conv_bin_array_to_str(bin_array):
     """the function convert bin array to string"""
-    # conv bin array to str
-    res = ''
-    for elem in bin_array:
-        res += bin(elem)[2:].zfill(BYTE)
-    return res
+    return ''.join(bin(elem)[2:].zfill(BYTE) for elem in bin_array)
+
+def print_numbers(i):
+    print(i, end=' ')
+    if i % 50 == 0 and i != 0:
+        print()

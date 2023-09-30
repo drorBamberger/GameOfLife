@@ -8,8 +8,7 @@ def rand_board(size, random_state=-1):
     """
     if random_state != -1:
         np.random.seed(random_state)
-    initial_states = np.random.binomial(1, 0.5, (size, size)).tolist()
-    return initial_states
+    return np.random.binomial(1, 0.5, (size, size)).tolist()
 
 
 def flatten(lst):
@@ -50,9 +49,9 @@ def create_board(num, size, moves=5):
     next_board = []
     prev_board = []
     amount_boards = 1
-    for i in range(moves):
+    for _ in range(moves):
         next_board = make_move(now_board)
-        if next_board != now_board and next_board != prev_board:
+        if next_board not in [now_board, prev_board]:
             boards += next_board
             prev_board = now_board
             now_board = next_board
@@ -76,10 +75,8 @@ def main():
 
     # fill the files with boards
     for i in range(AMOUNT_BOARDS):
-        print(i, end=' ')
-        if i % 100 == 0:
-            print()
-        name = str(SIZE) + "-" + str(i) + "-" + str(AMOUNT_MOVES) + "boards" + ".bnr"  # first board
+        print_numbers(i)
+        name = f"{str(SIZE)}-{str(i)}-{str(AMOUNT_MOVES)}boards.bnr"
         board, amount_boards = create_board(i, SIZE, AMOUNT_MOVES)
         with open(PATH_BOARDS + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
             # f.write(bytes(amount_boards))

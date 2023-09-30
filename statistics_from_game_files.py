@@ -33,36 +33,45 @@ def heat_map_pixels(size, amount_boards, amount_moves, num_dict):
     """make a heat map of num pixels live in the data of games"""
     length = size * size
     heat_map = np.zeros((size, size), dtype=int)
-    list_amount_boards = dict()
+    list_amount_boards = {}
+    num = 0
+    my_dict = {i: 0 for i in range(amount_moves + 2)}
     for i in range(amount_boards):
-        print(i, end=' ')
-        if i % 100 == 0:
-            print()
+        print_numbers(i)
         # path to read
         path_file = path(size, i, amount_moves, num_dict)
         # read the file
-        boards, amount_boards = read_file_to_list(path_file, length)
+        boards, amount_boards_in_file = read_file_to_list(path_file, length)
         # add any board in the file to the heat map
+        if len(boards) == amount_moves + 1 and boards[AMOUNT_MOVES] not in boards[:AMOUNT_MOVES]:
+            num += 1
+            for j in range(len(boards)):
+                my_dict[j] += num_pixels(boards[j])
         for board in boards:
             heat_map = add_board_to_heat_map(heat_map, size, board)
-        list_amount_boards[i] = amount_boards
-    return heat_map, list_amount_boards
+        list_amount_boards[i] = amount_boards_in_file
+    print(num)
+    return heat_map, list_amount_boards, my_dict
+
+
+def num_pixels(board):
+    return sum(i == '1' for i in board)
 
 
 def main():
-    heat_map, dict_amount_boards = heat_map_pixels(SIZE, AMOUNT_BOARDS, AMOUNT_MOVES, NUM_DICT)
+    heat_map, dict_amount_boards, my_dict = heat_map_pixels(SIZE, AMOUNT_BOARDS, AMOUNT_MOVES, NUM_DICT)
     print("heat map of pixels")
     print_heat_map(heat_map)
 
-    # plt.plot(*zip(*sorted(dict_amount_boards.items())))
-    # plt.show()
+    print("amount of pixel in any generation")
+    print(my_dict)
 
-    # print(dict(sorted(dict_amount_boards.items(), key=lambda item: item[1])))
+    keys = list(my_dict.keys())
+    values = list(my_dict.values())
+    plt.bar(keys, values)
+    plt.show()
 
-    dict_by_amount = {}
-    for i in range(AMOUNT_MOVES + 2):
-        dict_by_amount[i] = 0
-
+    dict_by_amount = {i: 0 for i in range(AMOUNT_MOVES + 2)}
     for value in dict_amount_boards.values():
         dict_by_amount[value] += 1
 
@@ -82,7 +91,7 @@ def main():
         if dict_amount_boards[i] == AMOUNT_MOVES + 1:
             path_file = path(SIZE, i, AMOUNT_MOVES, NUM_DICT)
             boards, amount_boards = read_file_to_list(path_file, LEN)
-            if boards[100] in boards[:100]:
+            if boards[AMOUNT_MOVES] in boards[:AMOUNT_MOVES]:
                 loops += 1
             else:
                 no_loops += 1
