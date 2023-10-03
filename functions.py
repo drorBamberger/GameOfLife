@@ -13,6 +13,8 @@ from matplotlib import cm
 from PIL.Image import Resampling
 import seaborn as sns
 import pandas as pd
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
 
 SIZE = 10
 AMOUNT_BOARDS = 100000
@@ -132,3 +134,45 @@ def print_numbers(i):
     print(i, end=' ')
     if i % 50 == 0 and i != 0:
         print()
+        
+        
+def print_big_numbers(i):
+    if i % 1000 == 0:
+        print(i, end=' ')
+    if i % 100000 == 0:
+        print()
+        
+        
+def measure_error(y_true, y_pred, label):
+    return pd.Series({'accuracy':accuracy_score(y_true, y_pred),
+                    'precision': precision_score(y_true, y_pred),
+                    'recall': recall_score(y_true, y_pred),
+                    'f1': f1_score(y_true, y_pred)},
+                    name=label)
+    
+def prepare_data(df, percent_to_test):
+    X = []
+
+    for i, line in enumerate(df):
+        print_big_numbers(i)
+        line_result = []
+        for string in line[:-1]:
+            line_result.extend([int(char) for char in string])
+        X.append(line_result)
+
+    y = [int(line[-1][0]) for line in df]
+
+    X_train = []
+    y_train = []
+    X_test = []
+    y_test = []
+
+    for i in range(len(X)):
+        print_big_numbers(i)
+        if i%(1/percent_to_test) != 0:
+            X_train.append(X[i])
+            y_train.append(y[i])
+        else:
+            X_test.append(X[i])
+            y_test.append(y[i])
+    return X_train ,X_test, y_train, y_test

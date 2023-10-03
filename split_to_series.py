@@ -8,7 +8,7 @@ def split_boards(boards, amount, ignore_range, amount_board_in_series):
 
 def delete_repeat(boards, amount):
     # delete the repeat boards
-    print("there is loop")
+    # print("there is loop")
     res = []
     for i in range(amount):
         if boards[i] in boards[i+1:]:
@@ -19,6 +19,7 @@ def delete_repeat(boards, amount):
 
 
 def split_board_to_series(size, amount_boards, amount_moves, num_dict, amount_board_in_series):
+    print(size, amount_boards, amount_moves, num_dict, amount_board_in_series)
     series = []
     for i in range(amount_boards):
         print_numbers(i)
@@ -38,8 +39,8 @@ def split_board_to_series(size, amount_boards, amount_moves, num_dict, amount_bo
 
 def main():
     data = split_board_to_series(SIZE, AMOUNT_BOARDS, AMOUNT_MOVES, NUM_DICT, 3)
-    #for i in data:
-        #print(i)
+    # for i in data:
+    #     print(i)
     print(len(data))
 
 
