@@ -14,13 +14,14 @@ from PIL.Image import Resampling
 import seaborn as sns
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn import tree
 
 
-SIZE = 10
-AMOUNT_BOARDS = 100000
-AMOUNT_MOVES = 100
+SIZE = 5
+AMOUNT_BOARDS = 10000
+AMOUNT_MOVES = 50
 NUM_DICT = 1
-READ_FILE = 5
+READ_FILE = 73
 IGNORE_RANGE = 5
 
 
@@ -118,10 +119,7 @@ def read_file_to_list(path, length):
     bin_array = read_file_bin_array(path)
     # print(bin_array)
     str_boards = conv_bin_array_to_str(bin_array)
-    list_boards = [
-        str_boards[i * LEN : (i + 1) * LEN]
-        for i in range(len(str_boards) // length)
-    ]
+    list_boards = [str_boards[i * LEN : (i + 1) * LEN] for i in range(len(str_boards) // length)]
     # print(list_boards)
     return list_boards, len(str_boards) // length
 
@@ -151,6 +149,18 @@ def measure_error(y_true, y_pred, label):
                     name=label)
     
 def prepare_data(df, percent_to_test):
+    """_summary_
+
+    Args:
+        df (list): data for split
+        percent_to_test (float): percent to test for split data
+
+    Returns:
+        X_train : list
+        X_test  : list
+        y_train  : list
+        y_test  : list
+    """
     X = []
 
     for i, line in enumerate(df):
@@ -176,3 +186,28 @@ def prepare_data(df, percent_to_test):
             X_test.append(X[i])
             y_test.append(y[i])
     return X_train ,X_test, y_train, y_test
+
+def dec_tree(X_train,y_train, X_test, y_test, md ,rs):
+    """_summary_
+
+    Args:
+        X_train (list): 
+        y_train (list): 
+        X_test (list): 
+        y_test (list): 
+        md (int): max depth
+        rs (int): random state
+    """
+    dt = tree.DecisionTreeClassifier(max_depth = md, random_state=rs)
+    dt = dt.fit(X_train, y_train)
+
+    # The error on the training and test data sets
+    y_train_pred = dt.predict(X_train)
+    y_test_pred = dt.predict(X_test)
+
+    train_test_full_error = pd.concat([measure_error(y_train, y_train_pred, 'train'),
+                                    measure_error(y_test, y_test_pred, 'test')],
+                                    axis=1)
+
+    print(dt.tree_.node_count, dt.tree_.max_depth)
+    return dt, train_test_full_error

@@ -1,7 +1,6 @@
 from PIL.Image import Dither
 from functions import *
 
-
 def save_board(my_board, size, name):
     """the function plot the board, and save the board to image file"""
     table = np.zeros((size, size, 3))
