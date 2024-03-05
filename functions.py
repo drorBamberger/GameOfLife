@@ -18,7 +18,7 @@ from sklearn import tree
 
 
 SIZE = 5
-AMOUNT_BOARDS = 10000
+AMOUNT_BOARDS = 1000
 AMOUNT_MOVES = 50
 NUM_DICT = 1
 READ_FILE = 73

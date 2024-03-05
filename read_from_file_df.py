@@ -27,7 +27,7 @@ def read_file_to_df(pathFile, size):
 
     return pd.DataFrame(boards_data.reshape((num_boards, board_elements)), columns=column_names)
 
-def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range):
+def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reversed = False):
     new_columns = [f'Col_{i}' for i in range(1, amount_board_in_series * size*size + 1)]
     res_df = pd.DataFrame(columns=new_columns)
 
@@ -39,17 +39,17 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
         df = read_file_to_df(path_file, size)
         #after we delete the repeat boards, we split the board to series
         if(len(df)>ignore_range):
-            #df = df[ignore_range:].drop_duplicates()
-            #for i in range(len(df) - amount_board_in_series + 1):
-            #    new_row = df.iloc[i:i + amount_board_in_series].values.flatten()
-            #    new_df.loc[len(new_df)] = new_row     
             df = df[ignore_range:].drop_duplicates().reset_index(drop=True)
-            df1 = df.iloc[:-1].reset_index(drop=True)
-            df2 = df[1:].reset_index(drop=True)
-            new_df = pd.concat([df1, df2], axis=1, ignore_index=True)
-            new_df.columns = new_columns
-            
-            res_df = pd.concat([res_df,new_df])
+            if reversed == False:
+                for i in range(len(df) - amount_board_in_series + 1):
+                    df1 = df.iloc[i:i+amount_board_in_series].reset_index(drop=True)
+                    new_row = pd.concat([df1]*amount_board_in_series,axis=1)
+            else:
+                for i in range(len(df) - amount_board_in_series + 1):
+                    df1 = df.iloc[i+amount_board_in_series:i].reset_index(drop=True)
+                    new_row = pd.concat([df1]*amount_board_in_series,axis=1)
+            new_row.columns = new_columns
+            res_df = pd.concat([res_df,new_row])
     return res_df
 
 
