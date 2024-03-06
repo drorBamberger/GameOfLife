@@ -27,7 +27,8 @@ def read_file_to_df(pathFile, size):
 
     return pd.DataFrame(boards_data.reshape((num_boards, board_elements)), columns=column_names)
 
-def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reversed = False):
+
+def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reverse = False):
     new_columns = [f'Col_{i}' for i in range(1, amount_board_in_series * size*size + 1)]
     res_df = pd.DataFrame(columns=new_columns)
 
@@ -40,14 +41,14 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
         #after we delete the repeat boards, we split the board to series
         if(len(df)>ignore_range):
             df = df[ignore_range:].drop_duplicates().reset_index(drop=True)
-            if reversed == False:
-                for i in range(len(df) - amount_board_in_series + 1):
-                    df1 = df.iloc[i:i+amount_board_in_series].reset_index(drop=True)
-                    new_row = pd.concat([df1]*amount_board_in_series,axis=1)
-            else:
-                for i in range(len(df) - amount_board_in_series + 1):
-                    df1 = df.iloc[i+amount_board_in_series:i].reset_index(drop=True)
-                    new_row = pd.concat([df1]*amount_board_in_series,axis=1)
+            new_row = df
+            for _ in range(amount_board_in_series-1):
+                new_col = df.iloc[1:].reset_index(drop=True)
+                df = df.iloc[1:].reset_index(drop=True)
+                if reverse==False:
+                    new_row = pd.concat([new_row.iloc[:-1],new_col],axis=1)
+                else:
+                    new_row = pd.concat([new_col,new_row.iloc[:-1]],axis=1)
             new_row.columns = new_columns
             res_df = pd.concat([res_df,new_row])
     return res_df
@@ -76,3 +77,30 @@ def dec_tree_df(X_train,y_train, X_test, y_test, md = None ,rs = 42):
                                     axis=1)
 
     return dt, dt.tree_.node_count, dt.tree_.max_depth, train_test_full_error
+
+
+
+"""def split_board_to_series_df1(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reversed = False):
+    new_columns = [f'Col_{i}' for i in range(1, amount_board_in_series * size*size + 1)]
+    res_df = pd.DataFrame(columns=new_columns)
+
+    for i in range(amount_boards):
+        print_numbers(i)
+        # path to read
+        path_file = path(size, i, amount_moves, num_dict)
+        # read the file
+        df = read_file_to_df(path_file, size)
+        #after we delete the repeat boards, we split the board to series
+        if(len(df)>ignore_range):
+            df = df[ignore_range:].drop_duplicates().reset_index(drop=True)
+            if reversed == False:
+                for i in range(len(df) - amount_board_in_series + 1):
+                    df1 = df.iloc[i:i+amount_board_in_series].reset_index(drop=True)
+                    new_row = pd.concat([df1]*amount_board_in_series,axis=1)
+            else:
+                for i in range(len(df) - amount_board_in_series + 1):
+                    df1 = df.iloc[i+amount_board_in_series:i].reset_index(drop=True)
+                    new_row = pd.concat([df1]*amount_board_in_series,axis=1)
+            new_row.columns = new_columns
+            res_df = pd.concat([res_df,new_row])
+    return res_df"""
