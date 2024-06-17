@@ -21,11 +21,11 @@ SIZE = 5
 AMOUNT_BOARDS = 10000
 AMOUNT_MOVES = 50
 NUM_DICT = 1
-READ_FILE = 73
+READ_FILE = 3499
 IGNORE_RANGE = 5
 
 
-M = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
+
 LEN = SIZE**2
 PATH_BOARDS = 'C:\\GameOfLife\\boards\\'
 BYTE = 8
@@ -38,10 +38,19 @@ PATH_TO_READ = str(READ_FILE % NUM_DICT) + "\\" + FILE_TO_READ
 # https://medium.com/@ptyshevs/rgol-ga-1cafc67db6c7
 
 
-def calc_neighs(field, i, j):
+def generate_twice_tuples(n):
+    result = []
+    for i in range(-n, n+1):
+        result.extend((i, j) for j in range(-n, n+1))
+    result.remove((0,0))
+    return result
+
+
+def calc_neighs(field, i, j, radii = 1):
     """ Calculate number of neighbors alive (assuming square field) """
     neighs = 0
     n = len(field)
+    M = generate_twice_tuples(radii)
     for m in M:
         row_idx = m[0] + i
         col_idx = m[1] + j
