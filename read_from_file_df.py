@@ -54,7 +54,7 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
     return res_df
 
 
-def dec_tree_df(X_train,y_train, X_test, y_test, md = None ,rs = 42):
+def dec_tree_df(X_train, y_train, X_test, y_test, md = None ,rs = 42):
     """_summary_
 
     Args:

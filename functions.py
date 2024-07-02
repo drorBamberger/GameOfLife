@@ -21,7 +21,7 @@ SIZE = 5
 AMOUNT_BOARDS = 10000
 AMOUNT_MOVES = 50
 NUM_DICT = 1
-READ_FILE = 3499
+READ_FILE = 0
 IGNORE_RANGE = 5
 
 
@@ -65,7 +65,7 @@ def calc_neighs(field, i, j, radii = 1):
         elif col_idx == n:
             if field[row_idx][0]:
                 neighs += 1
-        elif field[row_idx][col_idx]:
+        elif field[row_idx][col_idx] == 1:
             neighs += 1
     return neighs
 
