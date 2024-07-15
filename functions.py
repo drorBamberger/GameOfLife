@@ -17,8 +17,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn import tree
 
 
-SIZE = 5
-AMOUNT_BOARDS = 10000
+SIZE = 10
+AMOUNT_BOARDS = 100000
 AMOUNT_MOVES = 50
 NUM_DICT = 1
 READ_FILE = 0
