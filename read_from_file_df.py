@@ -5,7 +5,7 @@ from functions import *
 def read_file_to_df(pathFile, size):
     # Define the file path
     #path_file = 'C:\\GameOfLife\\boards\\' + path(SIZE, READ_FILE, AMOUNT_MOVES, NUM_DICT)
-    path_file = 'C:\\GameOfLife\\boards\\' + pathFile
+    path_file = 'C:\\GameOfLifeFiles\\boards\\' + pathFile
 
     # Read binary data into a numpy array of 8-bit integers
     binary_data = np.fromfile(path_file, dtype=np.uint8)

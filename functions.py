@@ -17,8 +17,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn import tree
 
 
-SIZE = 10
-AMOUNT_BOARDS = 100000
+SIZE = 5
+AMOUNT_BOARDS = 10000
 AMOUNT_MOVES = 50
 NUM_DICT = 1
 READ_FILE = 0
@@ -27,9 +27,12 @@ IGNORE_RANGE = 5
 
 
 LEN = SIZE**2
-PATH_BOARDS = 'C:\\GameOfLife\\boards\\'
+PATH_BOARDS = 'C:\\GameOfLifeFiles\\boards\\'
+PATH_IMAGES = 'C:\\GameOfLifeFiles\\images\\'
+PATH_MODELS = 'C:\\GameOfLifeFiles\\models\\'
+PATH_DF = 'C:\\GameOfLifeFiles\\df\\'
+
 BYTE = 8
-PATH_IMAGES = 'C:\\GameOfLife\\images\\'
 FILE_TO_READ = f"{SIZE}-{READ_FILE}-{AMOUNT_MOVES}boards.bnr"
 PATH_TO_READ = str(READ_FILE % NUM_DICT) + "\\" + FILE_TO_READ
 
