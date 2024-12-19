@@ -33,7 +33,7 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
     res_df = pd.DataFrame(columns=new_columns)
 
     for i in range(amount_boards):
-        print_numbers(i)
+        #print_numbers(i)
         # path to read
         path_file = path(size, i, amount_moves, num_dict)
         # read the file

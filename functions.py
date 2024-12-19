@@ -17,8 +17,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn import tree
 
 
-SIZE = 5
-AMOUNT_BOARDS = 10000
+SIZE = 10
+AMOUNT_BOARDS = 100000
 AMOUNT_MOVES = 50
 NUM_DICT = 1
 READ_FILE = 0
@@ -147,9 +147,9 @@ def print_numbers(i):
         
         
 def print_big_numbers(i):
-    if i % 1000 == 0:
+    if i % 50 == 0:
         print(i, end=' ')
-    if i % 100000 == 0:
+    if i % 10000 == 0:
         print()
         
         

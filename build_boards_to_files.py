@@ -75,7 +75,7 @@ def main():
 
     # fill the files with boards
     for i in range(AMOUNT_BOARDS):
-        print_numbers(i)
+        print_big_numbers(i)
         name = f"{str(SIZE)}-{str(i)}-{str(AMOUNT_MOVES)}boards.bnr"
         board, amount_boards = create_board(i, SIZE, AMOUNT_MOVES)
         with open(PATH_BOARDS + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
