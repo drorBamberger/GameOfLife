@@ -29,7 +29,7 @@ def read_file_to_df(pathFile, size):
 
 
 def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reverse = False):
-    new_columns = [f'Col_{i}' for i in range(1, amount_board_in_series * size*size + 1)]
+    new_columns = [f'Col_{i}' for i in range(1, amount_board_in_series*size*size + 1)]
     res_df = pd.DataFrame(columns=new_columns)
 
     for i in range(amount_boards):
