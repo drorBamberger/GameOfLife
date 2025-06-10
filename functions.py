@@ -19,10 +19,10 @@ from sklearn import tree
 
 
 SIZE = 5
-AMOUNT_BOARDS = 10000
+AMOUNT_BOARDS = 100000
 AMOUNT_MOVES = 100
 NUM_DICT = 1
-READ_FILE = 0
+READ_FILE = 1018
 IGNORE_RANGE = 5
 
 P = 5
@@ -31,6 +31,7 @@ LEN = SIZE**2
 PATH_BOARDS = 'C:\\GameOfLifeFiles\\boards\\'
 PATH_IMAGES = 'C:\\GameOfLifeFiles\\images\\'
 PATH_MODELS = 'C:\\GameOfLifeFiles\\models\\'
+PATH_DATA_TEST = 'C:\\GameOfLifeFiles\\dataTest\\'
 PATH_DF = 'C:\\GameOfLifeFiles\\df\\'
 
 BYTE = 8
