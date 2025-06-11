@@ -26,7 +26,7 @@ def split_board_to_series(size, amount_boards, amount_moves, num_dict, amount_bo
         print_numbers(i)
 
         # path to read
-        path_file = path(size, i, amount_moves, num_dict)
+        path_file = path(size, i, amount_moves, num_dict, amount_boards)
         # read the file
         boards_game, amount_boards_of_game = read_file_to_list(path_file, size * size)
 

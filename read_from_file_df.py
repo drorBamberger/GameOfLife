@@ -5,7 +5,7 @@ from functions import *
 def read_file_to_df(pathFile, size):
     # Define the file path
     #path_file = 'C:\\GameOfLife\\boards\\' + path(SIZE, READ_FILE, AMOUNT_MOVES, NUM_DICT)
-    path_file = 'C:\\GameOfLifeFiles\\boards\\' + pathFile
+    path_file = PATH_BOARDS + pathFile
 
     # Read binary data into a numpy array of 8-bit integers
     binary_data = np.fromfile(path_file, dtype=np.uint8)
@@ -35,7 +35,7 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
     for i in range(amount_boards):
         print_big_numbers(i)
         # path to read
-        path_file = path(size, i, amount_moves, num_dict)
+        path_file = path(size, i, amount_moves, num_dict, amount_boards)
         # read the file
         df = read_file_to_df(path_file, size)
         #after we delete the repeat boards, we split the board to series

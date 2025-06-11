@@ -18,25 +18,26 @@ from sklearn import tree
 
 
 
-SIZE = 5
-AMOUNT_BOARDS = 100000
+SIZE = 4
+AMOUNT_BOARDS = 1000
 AMOUNT_MOVES = 100
 NUM_DICT = 1
-READ_FILE = 1018
+READ_FILE = 8
 IGNORE_RANGE = 5
 
 P = 5
 
 LEN = SIZE**2
 PATH_BOARDS = 'C:\\GameOfLifeFiles\\boards\\'
+PATH_BOARDS_BY_SIZE = f"{PATH_BOARDS}\\boards_{SIZE}_{AMOUNT_BOARDS}_{AMOUNT_MOVES}_{NUM_DICT}\\"
 PATH_IMAGES = 'C:\\GameOfLifeFiles\\images\\'
 PATH_MODELS = 'C:\\GameOfLifeFiles\\models\\'
 PATH_DATA_TEST = 'C:\\GameOfLifeFiles\\dataTest\\'
 PATH_DF = 'C:\\GameOfLifeFiles\\df\\'
+PATH_DF_BY_SIZE = f"{PATH_DF}\\{SIZE}-{AMOUNT_BOARDS}\\"
 
 BYTE = 8
-FILE_TO_READ = f"{SIZE}-{READ_FILE}-{AMOUNT_MOVES}boards.bnr"
-PATH_TO_READ = str(READ_FILE % NUM_DICT) + "\\" + FILE_TO_READ
+PATH_TO_READ = f"boards_{SIZE}_{AMOUNT_BOARDS}_{AMOUNT_MOVES}_{NUM_DICT}\\{str(READ_FILE % NUM_DICT)}\\{SIZE}-{READ_FILE}-{AMOUNT_MOVES}boards.bnr"
 
 
 # the calcUneighs, make_move and generate_population functions from:
@@ -113,9 +114,8 @@ def max_no_zero(arr):
     return next((len(arr) - i for i in range(len(arr)) if arr[-i] != 0), -1)
 
 
-def path(size, number, amount_moves, num_dict):
-    name_file = f"{str(size)}-{str(number)}-{str(amount_moves)}boards.bnr"
-    return str(number % num_dict) + "\\" + name_file
+def path(size, number, amount_moves, num_dict, amount_boards):
+    return f"boards_{size}_{amount_boards}_{amount_moves}_{num_dict}\\{str(number % num_dict)}\\{str(size)}-{str(number)}-{str(amount_moves)}boards.bnr"
 
 
 def read_file_bin_array(path):

@@ -64,21 +64,21 @@ def create_board(num, size, moves=5):
 
 
 def main():
-    # Delete the previous images
-    if os.path.isdir(PATH_BOARDS[:-1]):
-        shutil.rmtree(PATH_BOARDS[:-1])
-    os.mkdir(PATH_BOARDS[:-1])
+    # Delete the previous files
+    if os.path.isdir(PATH_BOARDS_BY_SIZE[:-1]):
+        shutil.rmtree(PATH_BOARDS_BY_SIZE[:-1])
+    os.mkdir(PATH_BOARDS_BY_SIZE[:-1])
 
     # make directions for boards
     for i in range(NUM_DICT):
-        os.mkdir(PATH_BOARDS + str(i))
+        os.mkdir(PATH_BOARDS_BY_SIZE + str(i))
 
     # fill the files with boards
     for i in range(AMOUNT_BOARDS):
         print_big_numbers(i)
         name = f"{str(SIZE)}-{str(i)}-{str(AMOUNT_MOVES)}boards.bnr"
         board, amount_boards = create_board(i, SIZE, AMOUNT_MOVES)
-        with open(PATH_BOARDS + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
+        with open(PATH_BOARDS_BY_SIZE + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
             # f.write(bytes(amount_boards))
             f.write(bytes(board))
 
