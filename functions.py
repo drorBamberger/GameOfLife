@@ -52,6 +52,14 @@ def generate_twice_tuples(n):
     return result
 
 
+def find_loc(pixel, size):
+    x = pixel // size
+    y = pixel % size
+    return (x,y)
+
+def find_pixel(i,j,size):
+    return size*i+j
+
 def calc_neighs(field, i, j, radii = 1):
     """ Calculate number of neighbors alive (assuming square field) """
     neighs = 0
