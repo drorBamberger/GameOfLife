@@ -233,3 +233,38 @@ def dec_tree(X_train,y_train, X_test, y_test, md ,rs):
 
     print(dt.tree_.node_count, dt.tree_.max_depth)
     return dt, train_test_full_error
+
+
+import numpy as np
+from sklearn.metrics import confusion_matrix
+
+def evaluate_model(model, X_test_array, y_test_array):
+
+    # predict test
+    y_pred = model.predict(X_test_array)
+    y_pred_binary = (y_pred > 0.5).astype(int)
+
+    # Confusion matrix
+    cm = confusion_matrix(y_test_array, y_pred_binary)
+    tn, fp, fn, tp = cm.ravel()
+
+    # calc the parameters
+    precision = tp / (tp + fp + 1e-8)
+    recall = tp / (tp + fn + 1e-8)
+    f1 = 2 * (precision * recall) / (precision + recall + 1e-8)
+    acc = (tp + tn) / (tp + tn + fp + fn)
+
+    # print in table
+    print("\n===== Evaluation Results =====")
+    print("┌──────────────┬────────────┬────────────┐")
+    print("│              │ Pred=Alive │ Pred=Dead  │")
+    print("├──────────────┼────────────┼────────────┤")
+    print(f"│ True=Alive   │ {tp:10d} │ {fn:10d} │")
+    print(f"│ True=Dead    │ {fp:10d} │ {tn:10d} │")
+    print("└──────────────┴────────────┴────────────┘")
+
+    print("\n--- Performance Metrics ---")
+    print(f"{'Accuracy':<12}: {acc:.3f}")
+    print(f"{'Precision':<12}: {precision:.3f}")
+    print(f"{'Recall':<12}: {recall:.3f}")
+    print(f"{'F1-score':<12}: {f1:.3f}")
