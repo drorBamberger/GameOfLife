@@ -63,24 +63,29 @@ def create_board(num, size, moves=5):
     return boards_bin, amount_boards
 
 
-def main():
+def build_files(path, amount_boards, amount_moves, size, num_dict):
     # Delete the previous files
-    if os.path.isdir(PATH_BOARDS_BY_SIZE[:-1]):
-        shutil.rmtree(PATH_BOARDS_BY_SIZE[:-1])
-    os.mkdir(PATH_BOARDS_BY_SIZE[:-1])
+    if os.path.isdir(path[:-1]):
+        shutil.rmtree(path[:-1])
+    os.mkdir(path[:-1])
 
     # make directions for boards
-    for i in range(NUM_DICT):
-        os.mkdir(PATH_BOARDS_BY_SIZE + str(i))
+    for i in range(num_dict):
+        os.mkdir(path + str(i))
 
     # fill the files with boards
-    for i in range(AMOUNT_BOARDS):
+    for i in range(amount_boards):
         print_big_numbers(i)
-        name = f"{str(SIZE)}-{str(i)}-{str(AMOUNT_MOVES)}boards.bnr"
-        board, amount_boards = create_board(i, SIZE, AMOUNT_MOVES)
-        with open(PATH_BOARDS_BY_SIZE + str(i % NUM_DICT) + "\\" + name, 'wb') as f:
-            # f.write(bytes(amount_boards))
+        name = f"{str(size)}-{str(i)}-{str(amount_moves)}boards.bnr"
+        board, a = create_board(i, size, amount_moves)
+        with open(path + str(i % num_dict) + "\\" + name, 'wb') as f:
+            # f.write(bytes(a))
             f.write(bytes(board))
+
+def main():
+    print(PATH_BOARDS_BY_SIZE, AMOUNT_BOARDS, AMOUNT_MOVES, SIZE, NUM_DICT)
+    build_files(PATH_BOARDS_BY_SIZE, AMOUNT_BOARDS, AMOUNT_MOVES, SIZE, NUM_DICT)
+    
 
 
 if __name__ == "__main__":

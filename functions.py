@@ -18,8 +18,8 @@ from sklearn import tree
 
 
 
-SIZE = 4
-AMOUNT_BOARDS = 10000
+SIZE = 20
+AMOUNT_BOARDS = 100
 AMOUNT_MOVES = 100
 NUM_DICT = 1
 READ_FILE = 8
