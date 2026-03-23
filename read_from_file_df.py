@@ -53,6 +53,40 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
     return res_df
 
 
+def split_board_to_series_df_chunked(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reverse=False, start_idx=0):
+    """
+    Process boards in chunks to minimize memory usage.
+    Only processes the specified number of boards starting from start_idx.
+    
+    Args:
+        start_idx: Starting index for board processing
+        amount_boards: Number of boards to process in this chunk
+    """
+    new_columns = [f'Col_{i}' for i in range(amount_board_in_series*size*size)]
+    res_df = pd.DataFrame(columns=new_columns)
+
+    for i in range(start_idx, start_idx + amount_boards):
+        print_big_numbers(i)
+        # path to read
+        path_file = path(size, i, amount_moves, num_dict, start_idx + amount_boards)
+        # read the file
+        df = read_file_to_df(path_file, size)
+        #after we delete the repeat boards, we split the board to series
+        if(len(df)>ignore_range):
+            df = df[ignore_range:].drop_duplicates().reset_index(drop=True)
+            new_row = df
+            for _ in range(amount_board_in_series-1):
+                new_col = df.iloc[1:].reset_index(drop=True)
+                df = df.iloc[1:].reset_index(drop=True)
+                if reverse==False:
+                    new_row = pd.concat([new_row.iloc[:-1],new_col],axis=1)
+                else:
+                    new_row = pd.concat([new_col,new_row.iloc[:-1]],axis=1)
+            new_row.columns = new_columns
+            res_df = pd.concat([res_df,new_row])
+    return res_df
+
+
 def dec_tree_df(X_train, y_train, X_test, y_test, md = None ,rs = 42):
     """_summary_
 
