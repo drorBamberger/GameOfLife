@@ -16,7 +16,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn import tree
 from sklearn.model_selection import train_test_split
-
+import tensorflow as tf
 
 
 SIZE = 10
@@ -171,6 +171,16 @@ def measure_error(y_true, y_pred, label):
                     'f1': f1_score(y_true, y_pred)},
                     name=label)
     
+    
+def load_reverse_df(size, amount_boards, gen):
+    name_df = f'{PATH_DF}\\{size}-{amount_boards}\\{size}size_{amount_boards}boards_{gen}gen_reverse'
+    reverse_df = pd.read_pickle(f'{name_df}.pkl')
+    new_columns = [f'Col_{i}' for i in range(gen*size*size)]
+    reverse_df_sort = reverse_df.sort_values(by = new_columns).reset_index(drop=True)
+    for i in reverse_df_sort.columns:
+        reverse_df_sort[i] = reverse_df_sort[i].astype(int)
+    return reverse_df_sort
+
 def prepare_data(df, percent_to_test):
     """_summary_
 
@@ -292,7 +302,9 @@ def evaluate_model(model, X_test_array, y_test_array):
 
     # predict test
     y_pred = model.predict(X_test_array)
+    y_pred = y_pred.flatten()  # Ensure 1D array
     y_pred_binary = (y_pred > 0.5).astype(int)
+    y_test_array = y_test_array.flatten()  # Ensure 1D array
 
     # Confusion matrix
     cm = confusion_matrix(y_test_array, y_pred_binary)
@@ -344,7 +356,6 @@ def build_and_train_nn(X_train_array, y_train_array, size, dense_units=(128, 64)
 
     return model, history
 
-
 def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_size=32, validation_split=0.2):
     """Build and train a simple CNN for Game of Life reverse prediction."""
     import tensorflow as tf
@@ -370,4 +381,93 @@ def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_siz
                         epochs=epochs,
                         batch_size=batch_size)
 
+    return model, history
+
+def build_and_train_rnn(X_train_array, y_train_array, size, gen, rnn_units=128, dense_units=64, epochs=20, batch_size=32, validation_split=0.2):
+    """Build and train a simple RNN (LSTM) for Game of Life reverse prediction."""
+    import tensorflow as tf
+
+    input_dim = size * size
+    timesteps = gen - 1
+
+    # expected input shape from to_numpy_4d is (n, size, size, 1)
+    X_rnn = X_train_array.reshape((-1, timesteps, input_dim)).astype('float32')
+    y_rnn = y_train_array.astype('float32')
+
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=(timesteps, input_dim)),
+        tf.keras.layers.LSTM(rnn_units, activation='tanh'),
+        tf.keras.layers.Dense(dense_units, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(optimizer='adam',
+                    loss='binary_crossentropy',
+                    metrics=['accuracy'])
+
+    history = model.fit(X_rnn, y_rnn,
+                        validation_split=validation_split,
+                        epochs=epochs,
+                        batch_size=batch_size)
+
+    return model, history
+
+def build_RCNN_sidmoind(gen, x_train, y_train, size, batch_size, epochs):
+    # --- PREPROCESSING ---
+    gen_data = gen-1
+    num_samples = x_train.shape[0] - gen_data
+
+    X_train = np.zeros((num_samples, gen_data, size, size, 1), dtype='float32')
+    Y_train = np.zeros((num_samples, 1), dtype='float32')  # רק תא אחד
+
+    for i in range(num_samples):
+        X_train[i] = x_train[i:i+gen_data].reshape(gen_data, size, size, 1)   # רצף של gen_data לוחות
+        Y_train[i] = y_train[i]              # הפלט: תא אחד (0/1)
+
+    print("X_train shape:", X_train.shape)  # (num_samples, gen_data, SIZE, SIZE, 1)
+    print("y_train shape:", Y_train.shape)  # (num_samples, 1)
+
+    # --- MODEL ---
+    model = tf.keras.Sequential([
+        tf.keras.layers.ConvLSTM2D(
+            filters=32,
+            kernel_size=(3,3),
+            activation='relu',
+            padding='same',
+            return_sequences=True,
+            input_shape=(gen_data, size, size, 1)
+        ),
+        tf.keras.layers.BatchNormalization(),
+
+        tf.keras.layers.ConvLSTM2D(
+            filters=64,
+            kernel_size=(3,3),
+            activation='relu',
+            padding='same',
+            return_sequences=False
+        ),
+        tf.keras.layers.BatchNormalization(),
+
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')  # ← פלט יחיד בינארי
+    ])
+
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    model.summary()
+
+    # אימון
+    history = model.fit(
+        X_train, Y_train,
+        epochs=epochs,
+        batch_size=batch_size,
+        validation_split=0.2,
+        shuffle=True
+    )
+    
     return model, history

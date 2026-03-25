@@ -23,7 +23,6 @@ def delete_repeat(boards, amount):
 def split_board_to_series(size, amount_boards, amount_moves, num_dict, amount_board_in_series):
     series = []
     for i in range(amount_boards):
-        print_numbers(i)
 
         # path to read
         path_file = path(size, i, amount_moves, num_dict, amount_boards)
@@ -33,9 +32,7 @@ def split_board_to_series(size, amount_boards, amount_moves, num_dict, amount_bo
         if boards_game[amount_boards_of_game - 1]  in boards_game[:amount_boards_of_game-1]: # there is loop
             boards_game, amount_boards_of_game  = delete_repeat(boards_game, amount_boards_of_game)
         #after we delete the repeat boards, we split the board to series
-        print(len(boards_game))
         splited_boards = split_boards(boards_game, amount_boards_of_game, IGNORE_RANGE, amount_board_in_series)
-        print(len(splited_boards))
         series += splited_boards
     return series
 

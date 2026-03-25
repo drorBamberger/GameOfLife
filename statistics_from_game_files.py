@@ -37,7 +37,6 @@ def heat_map_pixels(size, amount_boards, amount_moves, num_dict):
     num = 0
     my_dict = {i: 0 for i in range(amount_moves + 2)}
     for i in range(amount_boards):
-        print_numbers(i)
         # path to read
         path_file = path(size, i, amount_moves, num_dict, amount_boards)
         # read the file
@@ -50,9 +49,6 @@ def heat_map_pixels(size, amount_boards, amount_moves, num_dict):
         for board in boards:
             heat_map = add_board_to_heat_map(heat_map, size, board)
         list_amount_boards[i] = amount_boards_in_file
-    print(num)
-    return heat_map, list_amount_boards, my_dict
-
 
 def num_pixels(board):
     return sum(i == '1' for i in board)
@@ -97,6 +93,10 @@ def main():
                 no_loops += 1
     print("number of boards with loops:", loops)
     print("number of boards without loops:", no_loops)
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
