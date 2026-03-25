@@ -15,6 +15,7 @@ import seaborn as sns
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn import tree
+from sklearn.model_selection import train_test_split
 
 
 
@@ -207,7 +208,56 @@ def prepare_data(df, percent_to_test):
         else:
             X_test.append(X[i])
             y_test.append(y[i])
-    return X_train ,X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test
+
+
+def prepare_reverse_dataset(reverse_df, size, gen, target_pixel_index=0, test_size=0.1, val_size=0.1, random_state=365):
+    """Prepare train/val/test split for reverse Game of Life data.
+
+    Args:
+        reverse_df (DataFrame): reverse dataset reading with gen*size*size columns
+        size (int): board side length
+        gen (int): number of generations in reverse chain
+        target_pixel_index (int): index of target pixel in the final board (0-based)
+        test_size (float): test split fraction
+        val_size (float): validation fraction (of train_val)
+        random_state (int): random state
+
+    Returns:
+        tuple: X_train, X_val, X_test, y_train, y_val, y_test (DataFrames/Series)
+    """
+    # All columns to integer
+    cols = [f'Col_{i}' for i in range(gen * size * size)]
+    reverse_df = reverse_df.copy()
+    reverse_df[cols] = reverse_df[cols].astype(int)
+
+    amount_features = len(reverse_df.columns) - size * size
+    features = reverse_df.iloc[:, :amount_features]
+    target_col = f'Col_{amount_features + target_pixel_index}'
+    target = reverse_df[target_col]
+
+    X_train_val, X_test, y_train_val, y_test = train_test_split(
+        features, target, test_size=test_size, random_state=random_state
+    )
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_val, y_train_val, test_size=val_size, random_state=random_state
+    )
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+
+def to_numpy_4d(X_train, X_val, X_test, y_train, y_val, y_test, size):
+    """Convert pandas splits to numpy arrays reshaped for CNN input."""
+    X_train_a = X_train.to_numpy().reshape((-1, size, size, 1))
+    X_val_a = X_val.to_numpy().reshape((-1, size, size, 1))
+    X_test_a = X_test.to_numpy().reshape((-1, size, size, 1))
+
+    y_train_a = y_train.to_numpy().reshape((-1, 1))
+    y_val_a = y_val.to_numpy().reshape((-1, 1))
+    y_test_a = y_test.to_numpy().reshape((-1, 1))
+
+    return X_train_a, X_val_a, X_test_a, y_train_a, y_val_a, y_test_a
+
 
 def dec_tree(X_train,y_train, X_test, y_test, md ,rs):
     """_summary_
@@ -268,3 +318,56 @@ def evaluate_model(model, X_test_array, y_test_array):
     print(f"{'Precision':<12}: {precision:.3f}")
     print(f"{'Recall':<12}: {recall:.3f}")
     print(f"{'F1-score':<12}: {f1:.3f}")
+
+
+def build_and_train_nn(X_train_array, y_train_array, size, dense_units=(128, 64), epochs=10, batch_size=32, validation_split=0.2):
+    """Build and train a small MLP/FC model for Game of Life reverse prediction."""
+    import tensorflow as tf
+
+    input_shape = (size, size, 1)
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=input_shape),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(dense_units[0], activation='relu'),
+        tf.keras.layers.Dense(dense_units[1], activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(optimizer='adam',
+                  loss='binary_crossentropy',
+                  metrics=['accuracy'])
+
+    history = model.fit(X_train_array, y_train_array,
+                        validation_split=validation_split,
+                        epochs=epochs,
+                        batch_size=batch_size)
+
+    return model, history
+
+
+def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_size=32, validation_split=0.2):
+    """Build and train a simple CNN for Game of Life reverse prediction."""
+    import tensorflow as tf
+
+    input_shape = (size, size, 1)
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=input_shape),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.MaxPooling2D((2, 2)),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(optimizer='adam',
+                  loss='binary_crossentropy',
+                  metrics=['accuracy'])
+
+    history = model.fit(X_train_array, y_train_array,
+                        validation_split=validation_split,
+                        epochs=epochs,
+                        batch_size=batch_size)
+
+    return model, history
