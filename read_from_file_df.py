@@ -28,6 +28,8 @@ def read_file_to_df(pathFile, size):
     return pd.DataFrame(boards_data.reshape((num_boards, board_elements)), columns=column_names)
 
 def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reverse = False):
+    now = datetime.now()
+    print(now.strftime("%Y-%m-%d %H:%M:%S"))
     new_columns = [f'Col_{i}' for i in range(amount_board_in_series*size*size)]
     res_df = pd.DataFrame(columns=new_columns)
 
@@ -54,8 +56,10 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
 
 
 def split_board_to_series_df_del(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reverse = False):
+    now = datetime.now()
+    print(now.strftime("%Y-%m-%d %H:%M:%S"))
     new_columns = [f'Col_{i}' for i in range(amount_board_in_series*size*size)]
-    res_df = pd.DataFrame(columns=new_columns)
+    res_df_list = []
 
     for i in range(amount_boards):
         print_big_numbers(i)
@@ -75,9 +79,10 @@ def split_board_to_series_df_del(size, amount_boards, amount_moves, num_dict, am
                 else:
                     new_row = pd.concat([new_col,new_row.iloc[:-1]],axis=1)
             new_row.columns = new_columns
-            res_df = pd.concat([res_df,new_row])
+            res_df_list.append(new_row)
             del new_row
         del df
+    res_df = pd.concat(res_df_list, ignore_index=True)
     return res_df
 
 
