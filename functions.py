@@ -471,3 +471,85 @@ def build_RCNN_sidmoind(gen, x_train, y_train, size, batch_size, epochs):
     )
     
     return model, history
+
+
+import tensorflow as tf
+
+
+def build_RCNN_softmax(gen, X_train_array, y_train_array, size, batch_size=32, epochs=3):
+    # sourcery skip: inline-immediately-returned-variable
+    # --- פרמטרים ---
+    gen_data = gen - 1    # מספר הלוחות הרציפים בקלט
+
+    # --- PREPROCESSING ---
+    # X_train_array.shape = (num_samples + gen_data, SIZE, SIZE, 1)
+    # y_train_array.shape = (num_samples, 1)  ← תא אחד בלבד (0 או 1)
+
+    num_samples = X_train_array.shape[0] - gen_data
+
+    X_train = np.zeros((num_samples, gen_data, size, size, 1), dtype='float32')
+    y_train = np.zeros((num_samples, 1), dtype='float32')  # רק תא אחד
+
+    # # Convert labels to one-hot (for softmax)
+    # y_train = tf.keras.utils.to_categorical(y_train, num_classes=2)
+    # y_val   = tf.keras.utils.to_categorical(y_val,   num_classes=2)
+    # y_test  = tf.keras.utils.to_categorical(y_test,  num_classes=2)
+
+    for i in range(num_samples):
+        X_train[i] = X_train_array[i:i+gen_data].reshape(gen_data, size, size, 1)   # רצף של gen_data לוחות
+        y_train[i] = y_train_array[i]              # הפלט: תא אחד (0/1)
+
+    print("X_train shape:", X_train.shape)  # (num_samples, gen_data, size, size, 1)
+    print("y_train shape:", y_train.shape)  # (num_samples, 1)
+
+    # --- MODEL ---
+    model = tf.keras.Sequential([
+        tf.keras.layers.ConvLSTM2D(
+            filters=32,
+            kernel_size=(3,3),
+            activation='relu',
+            padding='same',
+            return_sequences=True,
+            input_shape=(gen_data, size, size, 1)
+        ),
+        tf.keras.layers.BatchNormalization(),
+
+        tf.keras.layers.ConvLSTM2D(
+            filters=64,
+            kernel_size=(3,3),
+            activation='relu',
+            padding='same',
+            return_sequences=False
+        ),
+        tf.keras.layers.BatchNormalization(),
+
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+    
+    # ***** build RNN/RCNN train/test arrays *****
+    num_samples_train = X_train_array.shape[0] - gen_data
+
+    X_train_rnn = np.zeros((num_samples_train, gen_data, size, size, 1), dtype='float32')
+    y_train_rnn = np.zeros((num_samples_train,), dtype='float32')
+    for i in range(num_samples_train):
+        X_train_rnn[i] = X_train_array[i:i + gen_data].reshape(gen_data, size, size, 1)
+        y_train_rnn[i] = y_train_array[i].astype('float32')
+
+    # אימון
+    history = model.fit(
+        X_train_rnn,
+        y_train_rnn,
+        validation_split=0.2,
+        epochs=epochs,
+        batch_size=batch_size,
+        shuffle=True
+    )
+    
+    return model, history
