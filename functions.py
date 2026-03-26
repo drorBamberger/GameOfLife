@@ -241,7 +241,8 @@ def prepare_reverse_dataset(reverse_df, size, gen, target_pixel_index=0, test_si
     reverse_df = reverse_df.copy()
     reverse_df[cols] = reverse_df[cols].astype(int)
 
-    amount_features = len(reverse_df.columns) - size * size
+    # Use gen-1 boards as features, last board as target
+    amount_features = (gen - 1) * size * size
     features = reverse_df.iloc[:, :amount_features]
     target_col = f'Col_{amount_features + target_pixel_index}'
     target = reverse_df[target_col]
@@ -256,11 +257,11 @@ def prepare_reverse_dataset(reverse_df, size, gen, target_pixel_index=0, test_si
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
-def to_numpy_4d(X_train, X_val, X_test, y_train, y_val, y_test, size):
+def to_numpy_4d(X_train, X_val, X_test, y_train, y_val, y_test, size, gen):
     """Convert pandas splits to numpy arrays reshaped for CNN input."""
-    X_train_a = X_train.to_numpy().reshape((-1, size, size, 1))
-    X_val_a = X_val.to_numpy().reshape((-1, size, size, 1))
-    X_test_a = X_test.to_numpy().reshape((-1, size, size, 1))
+    X_train_a = X_train.to_numpy().reshape((-1, size, size, gen-1))
+    X_val_a = X_val.to_numpy().reshape((-1, size, size, gen-1))
+    X_test_a = X_test.to_numpy().reshape((-1, size, size, gen-1))
 
     y_train_a = y_train.to_numpy().reshape((-1, 1))
     y_val_a = y_val.to_numpy().reshape((-1, 1))
@@ -298,16 +299,91 @@ def dec_tree(X_train,y_train, X_test, y_test, md ,rs):
 import numpy as np
 from sklearn.metrics import confusion_matrix
 
-def evaluate_model(model, X_test_array, y_test_array):
-
+def evaluate_model(model, X_test_array, y_test_array, size=None, gen=None, gen_data_override=None):
+    """
+    Evaluate model with automatic data reshaping based on model input shape.
+    
+    Auto-detects model type by inspecting model.input_shape:
+    - 4D (*, size, size, 1) → NN/CNN (no reshaping needed)
+    - 3D (*, timesteps, flat_dim) → RNN (reshape from (n,size,size,1) to (-1, timesteps, size*size))
+    - 5D (*, gen_data, size, size, 1) → RCNN/ConvLSTM (build sliding window sequences)
+    
+    Args:
+        model: Keras/TF model
+        X_test_array: Test input features, shape (n, size, size, 1) typically
+        y_test_array: Test labels
+        size: Board dimension (e.g., 5). Required for 3D/5D reshaping.
+        gen: Number of generations. Used to infer timesteps (gen-1). Required for 3D/5D reshaping.
+        gen_data_override: Optional override for gen_data value if different from gen-1
+    """
+    # Flatten y_test if needed
+    y_test_flat = y_test_array.flatten() if y_test_array.ndim > 1 else y_test_array
+    
+    # Get model input shape
+    input_shape = model.input_shape
+    ndim = len(input_shape)
+    
+    X_prepared = X_test_array.copy()
+    
+    # Auto-detect and reshape based on model input requirements
+    if ndim == 4:
+        # 4D input: (*, size, size, 1) - NN/CNN
+        # No reshaping needed, use as-is
+        pass
+    
+    elif ndim == 3:
+        # 3D input: (*, timesteps, flat_dim) - RNN/LSTM
+        if size is None or gen is None:
+            raise ValueError("For RNN models, 'size' and 'gen' parameters are required")
+        
+        timesteps = gen - 1
+        flat_dim = size * size
+        
+        if X_prepared.ndim == 4:  # Currently (n, size, size, 1)
+            X_prepared = X_prepared.reshape((-1, timesteps, flat_dim)).astype('float32')
+        elif X_prepared.ndim == 5:  # Currently (n, gen-1, size, size, 1)
+            # Already in sequence form, just flatten the spatial dims
+            n_samples = X_prepared.shape[0]
+            X_prepared = X_prepared.reshape((n_samples, timesteps, flat_dim)).astype('float32')
+    
+    elif ndim == 5:
+        # 5D input: (*, gen_data, size, size, 1) - RCNN/ConvLSTM
+        if size is None or gen is None:
+            raise ValueError("For RCNN models, 'size' and 'gen' parameters are required")
+        
+        gen_data = gen_data_override if gen_data_override is not None else (gen - 1)
+        
+        if X_prepared.ndim == 4:
+            # Build sequences
+            num_samples = X_prepared.shape[0] - gen_data
+            X_new = np.zeros((num_samples, gen_data * gen_data, size, size, 1), dtype='float32')
+            
+            for i in range(num_samples):
+                X_new[i] = X_test_array[i:i+gen_data].reshape(gen_data * gen_data, size, size, 1)
+            
+            X_prepared = X_new
+            y_test_flat = y_test_flat[:num_samples]  # Trim y to match
+        # else: already (n, gen_data*gen_data, size, size, 1), use as-is
+    
+    else:
+        raise ValueError(f"Unsupported model input shape: {input_shape}")
+    
     # predict test
-    y_pred = model.predict(X_test_array)
-    y_pred = y_pred.flatten()  # Ensure 1D array
-    y_pred_binary = (y_pred > 0.5).astype(int)
-    y_test_array = y_test_array.flatten()  # Ensure 1D array
-
+    y_pred = model.predict(X_prepared)
+    
+    # Handle different output formats
+    if y_pred.ndim > 1 and y_pred.shape[-1] > 1:
+        # Multi-class or softmax output
+        y_pred_binary = np.argmax(y_pred, axis=1).astype(int)
+    else:
+        # Sigmoid output
+        y_pred_binary = (y_pred > 0.5).astype(int).flatten()
+    
+    # Ensure y_test_flat matches y_pred_binary length
+    y_test_binary = y_test_flat[:len(y_pred_binary)].astype(int)
+    
     # Confusion matrix
-    cm = confusion_matrix(y_test_array, y_pred_binary)
+    cm = confusion_matrix(y_test_binary, y_pred_binary)
     tn, fp, fn, tp = cm.ravel()
 
     # calc the parameters
@@ -331,12 +407,11 @@ def evaluate_model(model, X_test_array, y_test_array):
     print(f"{'Recall':<12}: {recall:.3f}")
     print(f"{'F1-score':<12}: {f1:.3f}")
 
-
 def build_and_train_nn(X_train_array, y_train_array, size, dense_units=(128, 64), epochs=10, batch_size=32, validation_split=0.2):
     """Build and train a small MLP/FC model for Game of Life reverse prediction."""
     import tensorflow as tf
 
-    input_shape = (size, size, 1)
+    input_shape = X_train_array.shape[1:]
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=input_shape),
         tf.keras.layers.Flatten(),
@@ -346,8 +421,8 @@ def build_and_train_nn(X_train_array, y_train_array, size, dense_units=(128, 64)
     ])
 
     model.compile(optimizer='adam',
-                  loss='binary_crossentropy',
-                  metrics=['accuracy'])
+                    loss='binary_crossentropy',
+                    metrics=['accuracy'])
 
     history = model.fit(X_train_array, y_train_array,
                         validation_split=validation_split,
@@ -360,7 +435,8 @@ def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_siz
     """Build and train a simple CNN for Game of Life reverse prediction."""
     import tensorflow as tf
 
-    input_shape = (size, size, 1)
+    # Extract input shape from data (handles variable number of channels/generations)
+    input_shape = X_train_array.shape[1:]
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=input_shape),
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
@@ -373,8 +449,8 @@ def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_siz
     ])
 
     model.compile(optimizer='adam',
-                  loss='binary_crossentropy',
-                  metrics=['accuracy'])
+                    loss='binary_crossentropy',
+                    metrics=['accuracy'])
 
     history = model.fit(X_train_array, y_train_array,
                         validation_split=validation_split,
@@ -412,17 +488,23 @@ def build_and_train_rnn(X_train_array, y_train_array, size, gen, rnn_units=128, 
 
     return model, history
 
-def build_RCNN_sidmoind(gen, x_train, y_train, size, batch_size, epochs):
+def build_and_train_rcnn(gen, x_train, y_train, size, batch_size, epochs, active = "sigmoid"):
     # --- PREPROCESSING ---
     gen_data = gen-1
     num_samples = x_train.shape[0] - gen_data
 
-    X_train = np.zeros((num_samples, gen_data, size, size, 1), dtype='float32')
-    Y_train = np.zeros((num_samples, 1), dtype='float32')  # רק תא אחד
+    X_train = np.zeros((num_samples, gen_data*gen_data, size, size, 1), dtype='float32')
+    if active == "softmax":
+        Y_train = np.zeros((num_samples, 2), dtype='float32')  # one-hot for softmax
+    else:
+        Y_train = np.zeros((num_samples, 1), dtype='float32')  # binary for sigmoid
 
     for i in range(num_samples):
-        X_train[i] = x_train[i:i+gen_data].reshape(gen_data, size, size, 1)   # רצף של gen_data לוחות
-        Y_train[i] = y_train[i]              # הפלט: תא אחד (0/1)
+        X_train[i] = x_train[i:i+gen_data].reshape(gen_data*gen_data, size, size, 1)   # רצף של gen_data לוחות
+        if active == "softmax":
+            Y_train[i] = [1, 0] if y_train[i] == 0 else [0, 1]  # one-hot
+        else:
+            Y_train[i] = y_train[i]              # הפלט: תא אחד (0/1)
 
     print("X_train shape:", X_train.shape)  # (num_samples, gen_data, SIZE, SIZE, 1)
     print("y_train shape:", Y_train.shape)  # (num_samples, 1)
@@ -435,7 +517,7 @@ def build_RCNN_sidmoind(gen, x_train, y_train, size, batch_size, epochs):
             activation='relu',
             padding='same',
             return_sequences=True,
-            input_shape=(gen_data, size, size, 1)
+            input_shape=(gen_data * gen_data, size, size, 1)
         ),
         tf.keras.layers.BatchNormalization(),
 
@@ -450,12 +532,12 @@ def build_RCNN_sidmoind(gen, x_train, y_train, size, batch_size, epochs):
 
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dense(1, activation='sigmoid')  # ← פלט יחיד בינארי
+        tf.keras.layers.Dense(2 if active == "softmax" else 1, activation=active)  
     ])
 
     model.compile(
         optimizer='adam',
-        loss='binary_crossentropy',
+        loss='categorical_crossentropy' if active == "softmax" else 'binary_crossentropy',
         metrics=['accuracy']
     )
 
@@ -472,11 +554,7 @@ def build_RCNN_sidmoind(gen, x_train, y_train, size, batch_size, epochs):
     
     return model, history
 
-
-import tensorflow as tf
-
-
-def build_RCNN_softmax(gen, X_train_array, y_train_array, size, batch_size=32, epochs=3):
+'''def build_RCNN_sigmoid(gen, x_train, y_train, size, batch_size=32, epochs=3, active = "sigmoid"):
     # sourcery skip: inline-immediately-returned-variable
     # --- פרמטרים ---
     gen_data = gen - 1    # מספר הלוחות הרציפים בקלט
@@ -485,21 +563,16 @@ def build_RCNN_softmax(gen, X_train_array, y_train_array, size, batch_size=32, e
     # X_train_array.shape = (num_samples + gen_data, SIZE, SIZE, 1)
     # y_train_array.shape = (num_samples, 1)  ← תא אחד בלבד (0 או 1)
 
-    num_samples = X_train_array.shape[0] - gen_data
+    num_samples = x_train.shape[0] - gen_data
 
-    X_train = np.zeros((num_samples, gen_data, size, size, 1), dtype='float32')
-    y_train = np.zeros((num_samples, 1), dtype='float32')  # רק תא אחד
-
-    # # Convert labels to one-hot (for softmax)
-    # y_train = tf.keras.utils.to_categorical(y_train, num_classes=2)
-    # y_val   = tf.keras.utils.to_categorical(y_val,   num_classes=2)
-    # y_test  = tf.keras.utils.to_categorical(y_test,  num_classes=2)
+    X_train = np.zeros((num_samples, gen_data*gen_data, size, size, 1), dtype='float32')
+    Y_train = np.zeros((num_samples, 1), dtype='float32')  # רק תא אחד
 
     for i in range(num_samples):
-        X_train[i] = X_train_array[i:i+gen_data].reshape(gen_data, size, size, 1)   # רצף של gen_data לוחות
-        y_train[i] = y_train_array[i]              # הפלט: תא אחד (0/1)
+        X_train[i] = x_train[i:i+gen_data].reshape(gen_data*gen_data, size, size, 1)   # רצף של gen_data לוחות
+        Y_train[i] = y_train[i]              # הפלט: תא אחד (0/1)
 
-    print("X_train shape:", X_train.shape)  # (num_samples, gen_data, size, size, 1)
+    print("X_train shape:", X_train.shape)  # (num_samples, gen_data*gen_data, size, size, 1)
     print("y_train shape:", y_train.shape)  # (num_samples, 1)
 
     # --- MODEL ---
@@ -534,13 +607,13 @@ def build_RCNN_softmax(gen, X_train_array, y_train_array, size, batch_size=32, e
     )
     
     # ***** build RNN/RCNN train/test arrays *****
-    num_samples_train = X_train_array.shape[0] - gen_data
+    num_samples_train = X_train.shape[0] - gen_data
 
     X_train_rnn = np.zeros((num_samples_train, gen_data, size, size, 1), dtype='float32')
     y_train_rnn = np.zeros((num_samples_train,), dtype='float32')
     for i in range(num_samples_train):
-        X_train_rnn[i] = X_train_array[i:i + gen_data].reshape(gen_data, size, size, 1)
-        y_train_rnn[i] = y_train_array[i].astype('float32')
+        X_train_rnn[i] = X_train[i:i + gen_data].reshape(gen_data, size, size, 1)
+        y_train_rnn[i] = y_train[i].astype('float32')
 
     # אימון
     history = model.fit(
@@ -552,4 +625,4 @@ def build_RCNN_softmax(gen, X_train_array, y_train_array, size, batch_size=32, e
         shuffle=True
     )
     
-    return model, history
+    return model, history'''
