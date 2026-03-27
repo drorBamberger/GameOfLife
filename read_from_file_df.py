@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from functions import *
+from datetime import datetime
 
 def read_file_to_df(pathFile, size):
     # Define the file path
@@ -55,35 +56,47 @@ def split_board_to_series_df(size, amount_boards, amount_moves, num_dict, amount
     return res_df
 
 
-def split_board_to_series_df_del(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reverse = False):
+def _build_time_series_from_array(arr, gen, reverse=False):
+    """Build sliding windows (gen frames) from board array matrix."""
+    n, d = arr.shape
+    if n < gen:
+        return np.empty((0, gen * d), dtype=arr.dtype)
+
+    n_seq = n - gen + 1
+    # shape (n_seq, gen, d)
+    windows = np.stack([arr[i:i + n_seq] for i in range(gen)], axis=1)
+    if reverse:
+        windows = windows[:, ::-1, :]
+    return windows.reshape(n_seq, gen * d)
+
+
+def split_board_to_series_df_del(size, amount_boards, amount_moves, num_dict, amount_board_in_series, ignore_range, reverse=False):
     now = datetime.now()
     print(now.strftime("%Y-%m-%d %H:%M:%S"))
-    new_columns = [f'Col_{i}' for i in range(amount_board_in_series*size*size)]
-    res_df_list = []
+    new_columns = [f'Col_{i}' for i in range(amount_board_in_series * size * size)]
 
+    res_chunks = []
     for i in range(amount_boards):
         print_big_numbers(i)
-        # path to read
         path_file = path(size, i, amount_moves, num_dict, amount_boards)
-        # read the file
         df = read_file_to_df(path_file, size)
-        #after we delete the repeat boards, we split the board to series
-        if(len(df)>ignore_range):
+
+        if len(df) > ignore_range:
             df = df[ignore_range:].drop_duplicates().reset_index(drop=True)
-            new_row = df
-            for _ in range(amount_board_in_series-1):
-                new_col = df.iloc[1:].reset_index(drop=True)
-                df = df.iloc[1:].reset_index(drop=True)
-                if reverse==False:
-                    new_row = pd.concat([new_row.iloc[:-1],new_col],axis=1)
-                else:
-                    new_row = pd.concat([new_col,new_row.iloc[:-1]],axis=1)
-            new_row.columns = new_columns
-            res_df_list.append(new_row)
-            del new_row
+            arr = df.to_numpy(dtype=np.uint8)
+            series_arr = _build_time_series_from_array(arr, amount_board_in_series, reverse=reverse)
+
+            if series_arr.size == 0:
+                continue
+
+            res_chunks.append(pd.DataFrame(series_arr, columns=new_columns))
+
         del df
-    res_df = pd.concat(res_df_list, ignore_index=True)
-    return res_df
+
+    if not res_chunks:
+        return pd.DataFrame(columns=new_columns)
+
+    return pd.concat(res_chunks, ignore_index=True)
 
 
 def dec_tree_df(X_train, y_train, X_test, y_test, md = None ,rs = 42):
