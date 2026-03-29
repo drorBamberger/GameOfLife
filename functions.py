@@ -630,6 +630,117 @@ def build_and_train_rnn_v2(X_train_array, y_train_array, size, gen,
     return model, history
 
 
+def build_and_train_crnn_v3(X_train_array, y_train_array, size, gen,
+                            conv_filters=(32, 64),
+                            kernel_size=(3, 3),
+                            lstm_units_1=128, lstm_units_2=64,
+                            dense_units_1=128, dense_units_2=64,
+                            dropout_rate=0.3, recurrent_dropout=0.2,
+                            learning_rate=0.001, weight_decay=1e-4,
+                            epochs=50, batch_size=512,
+                            validation_split=0.2,
+                            use_callbacks=True, use_class_weight=True, fit_verbose=1):
+    """
+    CRNN (Convolutional Recurrent Neural Network) for Game of Life reverse prediction.
+
+    Architecture:
+    1. TimeDistributed Conv2D blocks — extract local spatial features
+       (Game of Life rules are local: 3×3 neighbourhood).
+    2. Bidirectional stacked LSTM — capture sequential/temporal dependencies.
+    3. Dense head with BatchNorm + Dropout — decode to binary prediction.
+
+    Key improvements over v2:
+    - Conv2D layers BEFORE the recurrent layers add spatial awareness.
+    - AdamW optimizer with weight decay for better generalisation.
+    - ReduceLROnPlateau callback included by default.
+    - Sigmoid output for binary cell classification.
+    """
+    import tensorflow as tf
+
+    input_dim = size * size
+    timesteps = gen - 1
+
+    # Reshape: (n, size, size, gen-1) → (n, timesteps, size, size, 1)
+    X_crnn = X_train_array.reshape((-1, timesteps, size, size, 1)).astype('float32')
+    y_crnn = y_train_array.astype('float32')
+
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=(timesteps, size, size, 1)),
+
+        # --- Spatial feature extraction (applied per timestep) ---
+        tf.keras.layers.TimeDistributed(
+            tf.keras.layers.Conv2D(conv_filters[0], kernel_size, activation='relu', padding='same')
+        ),
+        tf.keras.layers.TimeDistributed(tf.keras.layers.BatchNormalization()),
+        tf.keras.layers.TimeDistributed(
+            tf.keras.layers.Conv2D(conv_filters[1], kernel_size, activation='relu', padding='same')
+        ),
+        tf.keras.layers.TimeDistributed(tf.keras.layers.BatchNormalization()),
+        tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D((2, 2))),
+        tf.keras.layers.TimeDistributed(tf.keras.layers.Flatten()),
+        tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(dropout_rate)),
+
+        # --- Recurrent layers (Bidirectional stacked LSTM) ---
+        tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(lstm_units_1, activation='tanh',
+                                 recurrent_dropout=recurrent_dropout,
+                                 return_sequences=True)
+        ),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Dropout(dropout_rate),
+
+        tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(lstm_units_2, activation='tanh',
+                                 recurrent_dropout=recurrent_dropout,
+                                 return_sequences=False)
+        ),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Dropout(dropout_rate),
+
+        # --- Dense head ---
+        tf.keras.layers.Dense(dense_units_1, activation='relu'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Dropout(dropout_rate),
+        tf.keras.layers.Dense(dense_units_2, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(
+        optimizer=tf.keras.optimizers.AdamW(
+            learning_rate=learning_rate,
+            weight_decay=weight_decay
+        ),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    # Callbacks: EarlyStopping + ReduceLROnPlateau
+    callbacks = None
+    if use_callbacks:
+        callbacks = [
+            tf.keras.callbacks.EarlyStopping(
+                monitor='val_loss', patience=7,
+                restore_best_weights=True, verbose=1
+            ),
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor='val_loss', factor=0.5,
+                patience=3, min_lr=1e-6, verbose=1
+            ),
+        ]
+
+    class_weight = _compute_binary_class_weight(y_crnn) if use_class_weight else None
+
+    history = model.fit(X_crnn, y_crnn,
+                        validation_split=validation_split,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        callbacks=callbacks,
+                        class_weight=class_weight,
+                        verbose=fit_verbose)
+
+    return model, history
+
+
 def build_and_train_rcnn(gen, x_train, y_train, size, batch_size, epochs, active = "sigmoid",
                          use_callbacks=True, use_class_weight=True, fit_verbose=1):
     # --- PREPROCESSING ---
