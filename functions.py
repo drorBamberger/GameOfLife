@@ -175,11 +175,12 @@ def measure_error(y_true, y_pred, label):
 def load_reverse_df(size, amount_boards, gen):
     name_df = f'{PATH_DF}\\{size}-{amount_boards}\\{size}size_{amount_boards}boards_{gen}gen_reverse'
     reverse_df = pd.read_pickle(f'{name_df}.pkl')
+    # downcast to int8 first to save memory (values are 0/1)
+    for col in reverse_df.columns:
+        reverse_df[col] = reverse_df[col].astype(np.int8)
     new_columns = [f'Col_{i}' for i in range(gen*size*size)]
-    reverse_df_sort = reverse_df.sort_values(by = new_columns).reset_index(drop=True)
-    for i in reverse_df_sort.columns:
-        reverse_df_sort[i] = reverse_df_sort[i].astype(int)
-    return reverse_df_sort
+    reverse_df.sort_values(by=new_columns, inplace=True, ignore_index=True)
+    return reverse_df
 
 def prepare_data(df, percent_to_test):
     """_summary_
@@ -407,7 +408,45 @@ def evaluate_model(model, X_test_array, y_test_array, size=None, gen=None, gen_d
     print(f"{'Recall':<12}: {recall:.3f}")
     print(f"{'F1-score':<12}: {f1:.3f}")
 
-def build_and_train_nn(X_train_array, y_train_array, size, dense_units=(128, 64), epochs=10, batch_size=32, validation_split=0.2):
+
+def _default_training_callbacks(patience=3, min_lr=1e-5):
+    """Common callbacks for stable training and less overfitting."""
+    return [
+        tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss',
+            patience=patience,
+            restore_best_weights=True,
+            verbose=1,
+        ),
+        tf.keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.5,
+            patience=max(1, patience // 2),
+            min_lr=min_lr,
+            verbose=1,
+        ),
+    ]
+
+
+def _compute_binary_class_weight(y):
+    """Return balanced class weights for binary labels, or None if unavailable."""
+    y_flat = np.asarray(y).reshape(-1).astype(int)
+    total = len(y_flat)
+    if total == 0:
+        return None
+
+    count_0 = int(np.sum(y_flat == 0))
+    count_1 = int(np.sum(y_flat == 1))
+    if count_0 == 0 or count_1 == 0:
+        return None
+
+    return {
+        0: total / (2.0 * count_0),
+        1: total / (2.0 * count_1),
+    }
+
+def build_and_train_nn(X_train_array, y_train_array, size, dense_units=(128, 64), epochs=10, batch_size=32, validation_split=0.2,
+                       use_callbacks=True, use_class_weight=True, fit_verbose=1):
     """Build and train a small MLP/FC model for Game of Life reverse prediction."""
     import tensorflow as tf
 
@@ -424,14 +463,21 @@ def build_and_train_nn(X_train_array, y_train_array, size, dense_units=(128, 64)
                     loss='binary_crossentropy',
                     metrics=['accuracy'])
 
+    callbacks = _default_training_callbacks() if use_callbacks else None
+    class_weight = _compute_binary_class_weight(y_train_array) if use_class_weight else None
+
     history = model.fit(X_train_array, y_train_array,
                         validation_split=validation_split,
                         epochs=epochs,
-                        batch_size=batch_size)
+                        batch_size=batch_size,
+                        callbacks=callbacks,
+                        class_weight=class_weight,
+                        verbose=fit_verbose)
 
     return model, history
 
-def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_size=32, validation_split=0.2):
+def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_size=32, validation_split=0.2,
+                        use_callbacks=True, use_class_weight=True, fit_verbose=1):
     """Build and train a simple CNN for Game of Life reverse prediction."""
     import tensorflow as tf
 
@@ -452,14 +498,21 @@ def build_and_train_cnn(X_train_array, y_train_array, size, epochs=10, batch_siz
                     loss='binary_crossentropy',
                     metrics=['accuracy'])
 
+    callbacks = _default_training_callbacks() if use_callbacks else None
+    class_weight = _compute_binary_class_weight(y_train_array) if use_class_weight else None
+
     history = model.fit(X_train_array, y_train_array,
                         validation_split=validation_split,
                         epochs=epochs,
-                        batch_size=batch_size)
+                        batch_size=batch_size,
+                        callbacks=callbacks,
+                        class_weight=class_weight,
+                        verbose=fit_verbose)
 
     return model, history
 
-def build_and_train_rnn(X_train_array, y_train_array, size, gen, rnn_units=128, dense_units=64, epochs=20, batch_size=32, validation_split=0.2):
+def build_and_train_rnn(X_train_array, y_train_array, size, gen, rnn_units=128, dense_units=64, epochs=20, batch_size=32,
+                        validation_split=0.2, use_callbacks=True, use_class_weight=True, fit_verbose=1):
     """Build and train a simple RNN (LSTM) for Game of Life reverse prediction."""
     import tensorflow as tf
 
@@ -481,14 +534,104 @@ def build_and_train_rnn(X_train_array, y_train_array, size, gen, rnn_units=128, 
                     loss='binary_crossentropy',
                     metrics=['accuracy'])
 
+    callbacks = _default_training_callbacks() if use_callbacks else None
+    class_weight = _compute_binary_class_weight(y_rnn) if use_class_weight else None
+
     history = model.fit(X_rnn, y_rnn,
                         validation_split=validation_split,
                         epochs=epochs,
-                        batch_size=batch_size)
+                        batch_size=batch_size,
+                        callbacks=callbacks,
+                        class_weight=class_weight,
+                        verbose=fit_verbose)
 
     return model, history
 
-def build_and_train_rcnn(gen, x_train, y_train, size, batch_size, epochs, active = "sigmoid"):
+
+def build_and_train_rnn_v2(X_train_array, y_train_array, size, gen,
+                           lstm_units_1=128, lstm_units_2=64,
+                           dense_units_1=128, dense_units_2=64,
+                           dropout_rate=0.3, recurrent_dropout=0.2,
+                           learning_rate=0.001,
+                           epochs=40, batch_size=32,
+                           validation_split=0.2,
+                           use_callbacks=True, use_class_weight=True, fit_verbose=1):
+    """
+    Improved RNN (Bidirectional stacked LSTM) for Game of Life reverse prediction.
+
+    Improvements over build_and_train_rnn:
+    1. Bidirectional LSTM — processes the board sequence forward AND backward,
+       capturing temporal dependencies in both directions.
+    2. Stacked 2-layer LSTM — deeper recurrent network extracts richer
+       temporal features from the board evolution sequence.
+    3. Dropout + Recurrent Dropout — regularization inside and between LSTM
+       layers to reduce overfitting.
+    4. BatchNormalization — stabilizes activations between layers for faster,
+       more stable convergence.
+    5. Larger Dense head (128 → 64) with Dropout — more decoding capacity
+       while still regularized.
+    6. Tunable learning rate — allows fine-tuning Adam's step size.
+    7. More epochs (40 default) — combined with EarlyStopping, the model gets
+       more chances to find a good minimum.
+    """
+    import tensorflow as tf
+
+    input_dim = size * size
+    timesteps = gen - 1
+
+    X_rnn = X_train_array.reshape((-1, timesteps, input_dim)).astype('float32')
+    y_rnn = y_train_array.astype('float32')
+
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=(timesteps, input_dim)),
+
+        # --- Layer 1: Bidirectional LSTM (return sequences for stacking) ---
+        tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(lstm_units_1, activation='tanh',
+                                 recurrent_dropout=recurrent_dropout,
+                                 return_sequences=True)
+        ),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Dropout(dropout_rate),
+
+        # --- Layer 2: Bidirectional LSTM (final recurrent output) ---
+        tf.keras.layers.Bidirectional(
+            tf.keras.layers.LSTM(lstm_units_2, activation='tanh',
+                                 recurrent_dropout=recurrent_dropout,
+                                 return_sequences=False)
+        ),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Dropout(dropout_rate),
+
+        # --- Dense head ---
+        tf.keras.layers.Dense(dense_units_1, activation='relu'),
+        tf.keras.layers.Dropout(dropout_rate),
+        tf.keras.layers.Dense(dense_units_2, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+
+    callbacks = _default_training_callbacks(patience=5) if use_callbacks else None
+    class_weight = _compute_binary_class_weight(y_rnn) if use_class_weight else None
+
+    history = model.fit(X_rnn, y_rnn,
+                        validation_split=validation_split,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        callbacks=callbacks,
+                        class_weight=class_weight,
+                        verbose=fit_verbose)
+
+    return model, history
+
+
+def build_and_train_rcnn(gen, x_train, y_train, size, batch_size, epochs, active = "sigmoid",
+                         use_callbacks=True, use_class_weight=True, fit_verbose=1):
     # --- PREPROCESSING ---
     gen_data = gen-1
     num_samples = x_train.shape[0] - gen_data
@@ -544,12 +687,20 @@ def build_and_train_rcnn(gen, x_train, y_train, size, batch_size, epochs, active
     model.summary()
 
     # אימון
+    callbacks = _default_training_callbacks() if use_callbacks else None
+    class_weight = None
+    if active != "softmax" and use_class_weight:
+        class_weight = _compute_binary_class_weight(Y_train)
+
     history = model.fit(
         X_train, Y_train,
         epochs=epochs,
         batch_size=batch_size,
         validation_split=0.2,
-        shuffle=True
+        shuffle=True,
+        callbacks=callbacks,
+        class_weight=class_weight,
+        verbose=fit_verbose,
     )
     
     return model, history
