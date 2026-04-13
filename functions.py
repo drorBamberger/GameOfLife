@@ -237,16 +237,11 @@ def prepare_reverse_dataset(reverse_df, size, gen, target_pixel_index=0, test_si
     Returns:
         tuple: X_train, X_val, X_test, y_train, y_val, y_test (DataFrames/Series)
     """
-    # All columns to integer
-    cols = [f'Col_{i}' for i in range(gen * size * size)]
-    reverse_df = reverse_df.copy()
-    reverse_df[cols] = reverse_df[cols].astype(int)
-
     # Use gen-1 boards as features, last board as target
     amount_features = (gen - 1) * size * size
-    features = reverse_df.iloc[:, :amount_features]
+    features = reverse_df.iloc[:, :amount_features].astype(np.int8)
     target_col = f'Col_{amount_features + target_pixel_index}'
-    target = reverse_df[target_col]
+    target = reverse_df[target_col].astype(np.int8)
 
     X_train_val, X_test, y_train_val, y_test = train_test_split(
         features, target, test_size=test_size, random_state=random_state
