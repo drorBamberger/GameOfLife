@@ -881,5 +881,153 @@ def build_and_train_rcnn(gen, x_train, y_train, size, batch_size, epochs, active
         batch_size=batch_size,
         shuffle=True
     )
-    
+
     return model, history'''
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Count-regression helpers  (attempt 8)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def prepare_count_regression_dataset(reverse_df, size, gen,
+                                      test_size=0.1, val_size=0.1, random_state=365):
+    """Prepare train/val/test split for the count-regression task.
+
+    Input  (X): the *current* board  (first (gen-1)*size*size columns of reverse_df).
+    Target (y): total number of live cells in the *previous* board
+                (sum of the last size*size columns in the same row).
+
+    Args:
+        reverse_df    : DataFrame with gen*size*size columns, loaded by load_reverse_df.
+        size          : Board side length (e.g. 10).
+        gen           : Number of generations stored per row (e.g. 2).
+        test_size     : Fraction held out for the final test set.
+        val_size      : Fraction of train_val held out for validation.
+        random_state  : Random seed for reproducibility.
+
+    Returns:
+        X_train, X_val, X_test, y_train, y_val, y_test  (DataFrames / Series)
+    """
+    amount_features = (gen - 1) * size * size
+    features = reverse_df.iloc[:, :amount_features].astype(np.int8)
+
+    # Previous board = columns [amount_features : gen*size*size]
+    prev_board = reverse_df.iloc[:, amount_features : gen * size * size].astype(np.int8)
+    target = prev_board.sum(axis=1).astype(np.float32)
+
+    X_tv, X_test, y_tv, y_test = train_test_split(
+        features, target, test_size=test_size, random_state=random_state
+    )
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_tv, y_tv, test_size=val_size, random_state=random_state
+    )
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+
+def to_numpy_count_regression(X_train, X_val, X_test,
+                               y_train, y_val, y_test, size):
+    """Convert pandas splits to numpy arrays shaped for the count-regression CNN.
+
+    X arrays  →  (n, size, size, 1)   float32
+    y arrays  →  (n, 1)               float32
+    """
+    X_tr = X_train.to_numpy().reshape((-1, size, size, 1)).astype('float32')
+    X_v  = X_val.to_numpy().reshape((-1, size, size, 1)).astype('float32')
+    X_te = X_test.to_numpy().reshape((-1, size, size, 1)).astype('float32')
+
+    y_tr = y_train.to_numpy().reshape((-1, 1)).astype('float32')
+    y_v  = y_val.to_numpy().reshape((-1, 1)).astype('float32')
+    y_te = y_test.to_numpy().reshape((-1, 1)).astype('float32')
+
+    return X_tr, X_v, X_te, y_tr, y_v, y_te
+
+
+def build_and_train_count_regression_cnn(X_train_array, y_train_array, size,
+                                          epochs=30, batch_size=256,
+                                          validation_split=0.2,
+                                          use_callbacks=True, fit_verbose=1):
+    """Build and train a CNN that predicts the total live-cell count of the previous board.
+
+    This is a regression task: given the current 10×10 board the model
+    outputs a single float estimating how many cells were alive one step earlier.
+
+    Architecture:
+        3 × Conv2D (32 / 64 / 128 filters, 3×3, same padding) + BatchNorm
+        → Flatten → Dense(256) → Dropout(0.3) → Dense(128) → Dropout(0.2)
+        → Dense(1, linear)
+
+    Loss / metric: MAE  (error measured directly in number of cells).
+    """
+    import tensorflow as tf
+
+    input_shape = X_train_array.shape[1:]  # (size, size, 1)
+
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=input_shape),
+
+        # --- Spatial feature extraction ---
+        tf.keras.layers.Conv2D(32,  (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Conv2D(64,  (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+
+        # --- Regression head ---
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(256, activation='relu'),
+        tf.keras.layers.Dropout(0.3),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(1),           # linear – predicts a raw count
+    ])
+
+    model.compile(
+        optimizer='adam',
+        loss='mae',
+        metrics=['mae', 'mse'],
+    )
+
+    callbacks = _default_training_callbacks(patience=5) if use_callbacks else None
+
+    history = model.fit(
+        X_train_array, y_train_array,
+        validation_split=validation_split,
+        epochs=epochs,
+        batch_size=batch_size,
+        callbacks=callbacks,
+        verbose=fit_verbose,
+    )
+
+    return model, history
+
+
+def evaluate_count_regression(model, X_test_array, y_test_array):
+    """Evaluate a count-regression model and print a summary report.
+
+    Prints MAE, RMSE, and the fraction of predictions within 1 / 2 / 3 / 5 cells
+    of the true previous-board live-cell count.
+
+    Returns:
+        y_pred (1-D numpy array), y_true (1-D numpy array)
+    """
+    y_pred = model.predict(X_test_array).flatten()
+    y_true = y_test_array.flatten()
+
+    errors     = np.abs(y_pred - y_true)
+    mae        = float(np.mean(errors))
+    rmse       = float(np.sqrt(np.mean((y_pred - y_true) ** 2)))
+    within_1   = float(np.mean(errors <= 1)) * 100
+    within_2   = float(np.mean(errors <= 2)) * 100
+    within_3   = float(np.mean(errors <= 3)) * 100
+    within_5   = float(np.mean(errors <= 5)) * 100
+
+    print("\n===== Count-Regression Evaluation =====")
+    print(f"{'MAE  (mean abs error)':<26}: {mae:.3f} cells")
+    print(f"{'RMSE':<26}: {rmse:.3f} cells")
+    print(f"{'Within 1 cell':<26}: {within_1:.1f}%")
+    print(f"{'Within 2 cells':<26}: {within_2:.1f}%")
+    print(f"{'Within 3 cells':<26}: {within_3:.1f}%")
+    print(f"{'Within 5 cells':<26}: {within_5:.1f}%")
+
+    return y_pred, y_true
