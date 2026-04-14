@@ -1031,3 +1031,225 @@ def evaluate_count_regression(model, X_test_array, y_test_array):
     print(f"{'Within 5 cells':<26}: {within_5:.1f}%")
 
     return y_pred, y_true
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# High-precision identification helpers  (attempt 9)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def prepare_full_board_dataset(reverse_df, size, gen,
+                                test_size=0.1, val_size=0.1, random_state=365):
+    """Prepare train/val/test splits for predicting ALL cells of the previous board.
+
+    X = current board   (first (gen-1)*size*size columns of reverse_df)
+    y = previous board  (last  size*size columns of reverse_df), all 100 cells
+
+    Args:
+        reverse_df  : DataFrame with gen*size*size columns (loaded by load_reverse_df).
+        size        : Board side length (e.g. 10).
+        gen         : Generations stored per row (e.g. 2).
+        test_size   : Fraction held out for the final test set.
+        val_size    : Fraction of train_val held out for validation.
+        random_state: Random seed.
+
+    Returns:
+        X_train, X_val, X_test, y_train, y_val, y_test  (DataFrames)
+    """
+    amount_features = (gen - 1) * size * size
+    features = reverse_df.iloc[:, :amount_features].astype(np.int8)
+    targets  = reverse_df.iloc[:, amount_features : gen * size * size].astype(np.int8)
+
+    X_tv, X_te, y_tv, y_te = train_test_split(
+        features, targets, test_size=test_size, random_state=random_state
+    )
+    X_tr, X_v, y_tr, y_v = train_test_split(
+        X_tv, y_tv, test_size=val_size, random_state=random_state
+    )
+    return X_tr, X_v, X_te, y_tr, y_v, y_te
+
+
+def to_numpy_full_board(X_train, X_val, X_test, y_train, y_val, y_test, size):
+    """Convert pandas splits to numpy arrays for the multi-output full-board model.
+
+    X: (N, size, size, 1)   float32  – current board as a 2-D image
+    y: (N, size*size)       float32  – all previous-board cell labels
+    """
+    X_tr = X_train.to_numpy().reshape((-1, size, size, 1)).astype('float32')
+    X_v  = X_val.to_numpy().reshape((-1, size, size, 1)).astype('float32')
+    X_te = X_test.to_numpy().reshape((-1, size, size, 1)).astype('float32')
+
+    y_tr = y_train.to_numpy().astype('float32')   # (N, size*size)
+    y_v  = y_val.to_numpy().astype('float32')
+    y_te = y_test.to_numpy().astype('float32')
+
+    return X_tr, X_v, X_te, y_tr, y_v, y_te
+
+
+def build_and_train_high_precision_cnn(X_train_array, y_train_array, size,
+                                        epochs=40, batch_size=256,
+                                        validation_split=0.2,
+                                        use_callbacks=True, fit_verbose=1):
+    """Build and train a CNN that predicts ALL cells of the previous board at once.
+
+    This multi-output model outputs a sigmoid probability for every one of the
+    size*size cells in the previous board.  The threshold used at inference time
+    can be tuned (via find_high_precision_threshold) to achieve >= 95% precision
+    while maximising the number of alive cells that are correctly identified.
+
+    Architecture:
+        Conv2D(64 / 128 / 128, 3×3, same) + BatchNorm  (three spatial blocks)
+        → Flatten
+        → Dense(512) → Dropout(0.3)
+        → Dense(256) → Dropout(0.2)
+        → Dense(size*size, sigmoid)
+
+    Loss: binary cross-entropy (averaged over all output cells).
+
+    Args:
+        X_train_array : (N, size, size, 1) float32
+        y_train_array : (N, size*size)     float32  (0 / 1 per cell)
+        size          : Board side length (e.g. 10).
+
+    Returns:
+        model, history
+    """
+    import tensorflow as tf
+
+    n_cells     = size * size
+    input_shape = X_train_array.shape[1:]   # (size, size, 1)
+
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=input_shape),
+
+        # --- Spatial feature extraction ---
+        tf.keras.layers.Conv2D(64,  (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+
+        # --- Classification head ---
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(512, activation='relu'),
+        tf.keras.layers.Dropout(0.3),
+        tf.keras.layers.Dense(256, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(n_cells, activation='sigmoid'),
+    ])
+
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy'],
+    )
+
+    callbacks = _default_training_callbacks(patience=5) if use_callbacks else None
+
+    history = model.fit(
+        X_train_array, y_train_array,
+        validation_split=validation_split,
+        epochs=epochs,
+        batch_size=batch_size,
+        callbacks=callbacks,
+        verbose=fit_verbose,
+    )
+
+    return model, history
+
+
+def find_high_precision_threshold(model, X_val_array, y_val_array,
+                                   target_precision=0.95):
+    """Find the lowest threshold that achieves >= target_precision on the validation set.
+
+    Evaluates all (board, cell) pairs jointly.  Maximises recall (alive cells
+    caught) subject to the precision constraint.
+
+    Args:
+        model            : Trained multi-output Keras model.
+        X_val_array      : (N, size, size, 1) float32.
+        y_val_array      : (N, size*size)     float32, values 0/1.
+        target_precision : Required precision (default 0.95).
+
+    Returns:
+        threshold (float), achieved_precision (float), achieved_recall (float)
+    """
+    from sklearn.metrics import precision_recall_curve
+
+    y_proba = model.predict(X_val_array, verbose=0)   # (N, size*size)
+    y_true  = y_val_array.astype(int)
+
+    # Flatten: treat each (board, cell) as an independent prediction
+    proba_flat = y_proba.flatten()
+    true_flat  = y_true.flatten()
+
+    # sklearn returns len(thresholds) == len(precisions) - 1
+    precisions, recalls, thresholds = precision_recall_curve(true_flat, proba_flat)
+
+    # Only look at indices that map to an actual threshold value
+    valid = np.where(precisions[:-1] >= target_precision)[0]
+
+    if len(valid) == 0:
+        print(f"WARNING: cannot reach {target_precision:.0%} precision. "
+              f"Max achievable: {precisions[:-1].max():.3f}")
+        best_idx = int(np.argmax(precisions[:-1]))
+    else:
+        # Among all thresholds with precision >= target, pick the one with
+        # the highest recall (i.e. the lowest threshold value)
+        best_idx = int(valid[np.argmax(recalls[valid])])
+
+    t = float(thresholds[best_idx])
+    p = float(precisions[best_idx])
+    r = float(recalls[best_idx])
+
+    n_identified = int(np.sum(proba_flat >= t))
+    n_true_alive = int(np.sum(true_flat))
+
+    print(f"\n===== Threshold search  (target precision ≥ {target_precision:.0%}) =====")
+    print(f"{'Optimal threshold':<30}: {t:.4f}")
+    print(f"{'Precision at threshold':<30}: {p:.3f}  ({p*100:.1f}%)")
+    print(f"{'Recall at threshold':<30}: {r:.3f}  ({r*100:.1f}%)")
+    print(f"{'Alive cells identified':<30}: {n_identified:,} / {n_true_alive:,}")
+
+    # Also return the full curves so the caller can plot them
+    return t, p, r, precisions, recalls, thresholds
+
+
+def evaluate_high_precision(model, X_test_array, y_test_array, threshold):
+    """Evaluate the high-precision model on the test set.
+
+    Prints a breakdown of identified vs missed alive cells and false alarms.
+
+    Args:
+        model          : Trained multi-output Keras model.
+        X_test_array   : (N, size, size, 1) float32.
+        y_test_array   : (N, size*size)     float32, values 0/1.
+        threshold      : Decision threshold from find_high_precision_threshold.
+
+    Returns:
+        y_proba (N, size*size),  y_pred (N, size*size) int,  y_true (N, size*size) int
+    """
+    y_proba = model.predict(X_test_array, verbose=0)
+    y_pred  = (y_proba >= threshold).astype(int)
+    y_true  = y_test_array.astype(int)
+
+    pred_flat = y_pred.flatten()
+    true_flat = y_true.flatten()
+
+    tp = int(np.sum((pred_flat == 1) & (true_flat == 1)))
+    fp = int(np.sum((pred_flat == 1) & (true_flat == 0)))
+    fn = int(np.sum((pred_flat == 0) & (true_flat == 1)))
+
+    precision = tp / (tp + fp + 1e-8)
+    recall    = tp / (tp + fn + 1e-8)
+    f1        = 2 * precision * recall / (precision + recall + 1e-8)
+
+    print(f"\n===== High-Precision Evaluation  (threshold = {threshold:.4f}) =====")
+    print(f"{'Cells flagged as alive':<32}: {tp + fp:>8,}")
+    print(f"{'  ↳ truly alive  (TP)':<32}: {tp:>8,}   precision = {precision*100:.1f}%")
+    print(f"{'  ↳ false alarms (FP)':<32}: {fp:>8,}")
+    print(f"{'Total truly alive cells':<32}: {tp + fn:>8,}")
+    print(f"{'Recall  (alive cells caught)':<32}: {recall*100:>7.1f}%")
+    print(f"{'F1-score':<32}: {f1:>8.3f}")
+
+    return y_proba, y_pred, y_true
